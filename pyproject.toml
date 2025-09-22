@@ -1,0 +1,13 @@
+[project]
+name = "nkinvoice"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "nkdatabase",
+    "playwright>=1.55.0",
+]
+
+[tool.uv.sources]
+nkdatabase = { git = "https://github.com/nkCommon/nkDatabase_Public.git" }
