@@ -209,3 +209,4 @@ __marimo__/
 #Own ignores
 database.ini
 .ini
+*.ini
