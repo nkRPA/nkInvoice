@@ -7,6 +7,8 @@ from playwright.sync_api import Browser, BrowserContext, Page
 from pydantic import BaseModel, Field, ValidationError, computed_field, ConfigDict, PrivateAttr, field_validator
 from typing import Optional
 
+from Invoice.src._helpers import _exception_helper
+
 OPUS_CSV_HEADERS = ["Artskonto", "Omkostningssted", "PSP-element", "Profitcenter", "Ordre", "Debet/kredit", "Beløb", "Næste agent", "Tekst", "Betalingsart", "Påligningsår", "Betalingsmodtagernr.", "Betalingsmodtagernr.kode", "Ydelsesmodtagernr.", "Ydelsesmodtagernr.kode", "Ydelsesperiode fra", "Ydelsesperiode til", "Oplysningspligtnr.", "Oplysningspligtmodtagernr.kode", "Oplysningspligtkode", "Netværk", "Operation", "Mængde", "Mængdeenhed", "Referencenøgle"] 
 IFRAME_SELECTORS = [
                 'iframe[name*="URLSPW"]',
@@ -44,6 +46,7 @@ class nkInvoice(BaseModel):
     _browser: Optional[Browser] = PrivateAttr(default=None)
     _context: Optional[BrowserContext] = PrivateAttr(default=None)
     _page: Optional[Page] = PrivateAttr(default=None)
+    _result: Optional[dict] = PrivateAttr(default=None)
 
     # Attributes
     model_config = ConfigDict(extra='forbid', strict=True)
@@ -69,20 +72,17 @@ class nkInvoice(BaseModel):
     ### ------------------------------------------------------------------------------------------------------
     ### PUBLIC METHODS
     def create_invoice(self):
+        """Create an invoice in the Opus system using Playwright."""        
         with sync_playwright() as playwright:
             self._create_csv()
             self._start_opus_rollebaseret(playwright)
-            if self._browser is None:
-                return {"status": "error", "message": "Failed to start rollebaseret indgang"}
-            
-            result = self._fill_opus_page()
-            
+            self._fill_opus_page()
             self._context.close()
             self._browser.close()
-        
-        return result
+            return self._result
     ### ------------------------------------------------------------------------------------------------------
     ### PRIVATE METHODS
+    @_exception_helper
     def _start_opus_rollebaseret(self, playwright)-> tuple[Browser, BrowserContext, Page]:
         self._browser = playwright.chromium.launch(headless=False)
         self._context = self._browser.new_context()
@@ -97,15 +97,32 @@ class nkInvoice(BaseModel):
             self._page.wait_for_load_state('networkidle', timeout=10000)
         except:
             pass
+        
+        error_message = self.check_login_error()
+        if error_message:
+            raise RuntimeError(f"Login failed: {error_message}")
+        
+        self._page.locator("#externalCol").get_by_role("button").click()
+        self._page.get_by_text("Bilagsbehandling").click()
+        self._page.get_by_text("Opret omposteringsbilag").click()
+        
+    def check_login_error(self):
+        # Wait until the form is visible (ensures DOM is loaded)
         try:
-            self._page.locator("#externalCol").get_by_role("button").click()
-            self._page.get_by_text("Bilagsbehandling").click()
-            self._page.get_by_text("Opret omposteringsbilag").click()
+            self._page.wait_for_selector("#loginForm")
+
+            # Check if error element exists and is visible
+            error_locator = self._page.locator("#errorText")
+
+            if error_locator.is_visible():
+                error_message = error_locator.inner_text()
+                return error_message
+            else:
+                return None            
         except:
-            self._browser = None
-            self._context = None
-            self._page = None
+            return None
     ### ***********************************************************
+    @_exception_helper
     def _create_csv(self):
         csv_data = [
             [
@@ -134,7 +151,8 @@ class nkInvoice(BaseModel):
             ]
         ]
         self._create_opus_csv(data=csv_data)
-    ### ***********************************************************
+
+    @_exception_helper
     def _create_opus_csv(self, data):
         headers = OPUS_CSV_HEADERS
         
@@ -145,43 +163,40 @@ class nkInvoice(BaseModel):
         
         # return f"CSV file '{filename}' created successfully with {len(data)} rows"
     ### ***********************************************************
+    @_exception_helper
     def _fill_opus_page(self):
         # Fill the OPUS page with invoice data
-        try:
-            Invoice = False
-            status_text = "Not runned"
-            text = "Not runned"
-            # Wait for page to load
-            self._page.wait_for_load_state('networkidle')
-            # bogføringsdato
-            self._fill_value(label_name="Bogføringsdato", value=self.invoice_data['Bogføringsdato'])
-            # Tekst
-            self._fill_value(label_name="Tekst", value=self.invoice_data['Tekst'])
-            # Reference
-            self._fill_value(label_name="Reference", value=self.invoice_data['Reference'])
-            # Kommentarer     
-            self._fill_comments(value=self.invoice_data['Kommentar'])
-            # Vedhæft bilag
-            self._fill_attachment()
-            # Indsæt csv posteringer
-            self._fill_csv()
-            # Kontroller bilag
-            status_text = self._check_invoice()
+        Invoice = False
+        status_text = "Not runned"
+        text = "Not runned"
+        # Wait for page to load
+        self._page.wait_for_load_state('networkidle')
+        # bogføringsdato
+        self._fill_value(label_name="Bogføringsdato", value=self.invoice_data['Bogføringsdato'])
+        # Tekst
+        self._fill_value(label_name="Tekst", value=self.invoice_data['Tekst'])
+        # Reference
+        self._fill_value(label_name="Reference", value=self.invoice_data['Reference'])
+        # Kommentarer     
+        self._fill_comments(value=self.invoice_data['Kommentar'])
+        # Vedhæft bilag
+        self._fill_attachment()
+        # Indsæt csv posteringer
+        self._fill_csv()
+        # Kontroller bilag
+        status_text = self._check_invoice()
 
-            print(f"Status text: {status_text}")
-            if status_text == 'Omposteringsbilaget er kontrolleret og OK':
-                Invoice = True
-                text = "Bilag oprettet"
-            else:
-                Invoice = False
-                text = "Bilag ikke oprettet"
-            # Opret bilag
-            return {"status": Invoice, "message": text, "Bilag": status_text}
-            
-        except Exception as e:
-            print(e)
-            return {"status": "error", "message": f"Failed to fill OPUS page: {str(e)}", "Bilag": status_text}
+        print(f"Status text: {status_text}")
+        if status_text == 'Omposteringsbilaget er kontrolleret og OK':
+            Invoice = True
+            text = "Bilag oprettet"
+        else:
+            Invoice = False
+            text = "Bilag ikke oprettet"
+        # Opret bilag
+        self._result = {"status": Invoice, "message": text, "Bilag": status_text}
     ### ***********************************************************
+    @_exception_helper
     def _fill_value(self, label_name, value):
         frame = self._page.frame_locator("#contentAreaFrame").frame_locator("#isolatedWorkArea")
         input = frame.get_by_text(label_name, exact=True)
@@ -195,6 +210,7 @@ class nkInvoice(BaseModel):
         input.type(value)
         input.press("Enter")
     ### ***********************************************************
+    @_exception_helper
     def _fill_comments(self, value):
         frame = self._page.frame_locator("#contentAreaFrame").frame_locator("#isolatedWorkArea")
         input = frame.get_by_text("Valuta", exact=True)
@@ -203,6 +219,7 @@ class nkInvoice(BaseModel):
         input.type(value)
         input.press("Enter")
     ### ***********************************************************
+    @_exception_helper
     def _fill_attachment(self):
         """Handle file attachment in popup window"""
         # Click the attachment button
@@ -239,6 +256,7 @@ class nkInvoice(BaseModel):
         ok_button = iframe.locator("div.lsButton:has(span:has-text('OK'))")
         ok_button.press("Enter")                        
     ### ***********************************************************
+    @_exception_helper
     def _fill_csv(self):
         """Handle file attachment in popup window"""
        
@@ -277,29 +295,24 @@ class nkInvoice(BaseModel):
         ok_button = iframe.locator("div.lsButton:has(span:has-text('OK'))")
         ok_button.press("Enter")                        
     ### ***********************************************************
+    @_exception_helper
     def _get_status_text(self, frame)->str:
-        try:
-            status_text= 'Not controlled'
-            message_area = frame.locator("table.lsHTMLContainer.lsScrollContainer--positionscrolling")
-            messages = message_area.locator("span.lsTextView").all_text_contents()
-            if len(messages) > 0:
-                status_text = messages[0]
-
-            return status_text
-
-        except Exception as e:
-            print(f"Error in get_status_text: {e}")
-            return e.message
+        status_text= 'Not controlled'
+        message_area = frame.locator("table.lsHTMLContainer.lsScrollContainer--positionscrolling")
+        messages = message_area.locator("span.lsTextView").all_text_contents()
+        if len(messages) > 0:
+            status_text = messages[0]
+        return status_text
     ### ***********************************************************
+    @_exception_helper
     def _check_invoice(self)->bool:
         frame = self._page.frame_locator("#contentAreaFrame").frame_locator("#isolatedWorkArea")
         control_button = frame.locator('div[title*="Kontroller bilag"]')
         control_button.click()
+        self._page.wait_for_timeout(2000)
         status_text = self._get_status_text(frame)
         return  status_text
     ### ***********************************************************
-
-
 
 if __name__ == '__main__':
     opus = OpusConfig(municipality_code=370, username="samdrift\JX00999998", password="VsDFYQhvgwKxqnerCM7RjfE2LXutbd#*-_aG4kp36JSmTc8HyP")
@@ -319,6 +332,7 @@ if __name__ == '__main__':
     try:
         invoice = nkInvoice(opus_data=opus, invoice_data=invoice_data)
         result = invoice.create_invoice()
+        print(result)
     except Exception as e:
         print(f"Error: {e}")
 

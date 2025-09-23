@@ -1,5 +1,5 @@
 import unittest
-from src.nkInvoice import nkInvoice, OpusConfig
+from Invoice.src.nkInvoice import nkInvoice, OpusConfig
 from pydantic import ValidationError
 
 class TestInvoice(unittest.TestCase):
@@ -65,23 +65,23 @@ class TestInvoice(unittest.TestCase):
 
         # test missing password
         try:
-            opus = OpusConfig(municipality_code=370, username="samdrift\JX00999998")
+            opus = OpusConfig(municipality_code=370, username="username")
         except Exception as e:
             self.assertTrue("password" in str(e).lower() and "missing" in str(e).lower())
         # test missing username
         try:
-            opus = OpusConfig(municipality_code=370, password="samdrift\JX00999998")
+            opus = OpusConfig(municipality_code=370, password="passseord")
         except Exception as e:
             self.assertTrue("username" in str(e).lower() and "missing" in str(e).lower())
         # test missing municipality_code
         try:
-            opus = OpusConfig(username="samdrift\JX00999998", password="samdrift\JX00999998")
+            opus = OpusConfig(username="bruger", password="pasord")
         except Exception as e:
             self.assertTrue("municipality_code" in str(e).lower() and "missing" in str(e).lower())  
 
 
     def test_invoice_creation_invoice_data(self):
-        opus = OpusConfig(municipality_code=370, username="samdrift\JX00999998", password="samdrift\JX00999998")
+        opus = OpusConfig(municipality_code=370, username="bruger", password="kode1234")
 
         try:
             invoice = nkInvoice(opus_data=opus, invoice_data=self.error_missing_debet_invoice_data)
@@ -98,8 +98,19 @@ class TestInvoice(unittest.TestCase):
         except Exception as e:
             self.assertTrue("kost" in str(e).lower() and "missing" in str(e).lower())  
 
-    def test_invoice_str(self):
-        self.assertTrue(True)  # Placeholder
+
+    def test_invoice_creation(self):
+        opus = OpusConfig(municipality_code=370, username="bruger", password="kode1234")
+
+        try:
+            invoice = nkInvoice(opus_data=opus, invoice_data=self.correct_invoice_data)
+            invoice.create_invoice()
+        except Exception as e:
+            #Error: Error in function '_start_opus_rollebaseret': Login failed: Enter your user ID in the format "domain\user" or "user@domain".
+            self.assertTrue("_start_opus_rollebaseret" in str(e).lower() and "login failed" in str(e).lower())  
+
+
+
 
 if __name__ == '__main__':
     unittest.main()
