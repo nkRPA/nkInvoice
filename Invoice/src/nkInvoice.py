@@ -52,7 +52,7 @@ class nkInvoice(BaseModel):
     model_config = ConfigDict(extra='forbid', strict=True)
     invoice_data: dict
     opus_data: OpusConfig
-    
+    headless: bool = False
     # Validation
     @field_validator("invoice_data")
     @classmethod
@@ -84,7 +84,7 @@ class nkInvoice(BaseModel):
     ### PRIVATE METHODS
     @_exception_helper
     def _start_opus_rollebaseret(self, playwright)-> tuple[Browser, BrowserContext, Page]:
-        self._browser = playwright.chromium.launch(headless=False)
+        self._browser = playwright.chromium.launch(headless=self.headless)
         self._context = self._browser.new_context()
         self._page = self._context.new_page()
         url = self.opus_data.valid_url()
@@ -330,7 +330,7 @@ if __name__ == '__main__':
             "csv_filename":"/Users/lakas/tmp/opus.csv"
         }
     try:
-        invoice = nkInvoice(opus_data=opus, invoice_data=invoice_data)
+        invoice = nkInvoice(opus_data=opus, invoice_data=invoice_data, headless=True)
         result = invoice.create_invoice()
         print(result)
     except Exception as e:

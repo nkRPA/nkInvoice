@@ -210,3 +210,4 @@ __marimo__/
 database.ini
 .ini
 *.ini
+.env
