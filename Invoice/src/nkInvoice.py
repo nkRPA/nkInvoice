@@ -4,8 +4,8 @@ import sys
 from playwright.sync_api import Playwright, sync_playwright, expect
 from playwright.sync_api import Browser, BrowserContext, Page
 # from setup.Constants import Constants
-from pydantic import BaseModel, Field, ValidationError, computed_field, ConfigDict, PrivateAttr, field_validator, constr, FilePath
-from typing import Optional
+from pydantic import BaseModel, Field, ValidationError, computed_field, ConfigDict, PrivateAttr, field_validator, model_validator, constr, FilePath, ValidationInfo, confloat
+from typing import Optional, Union
 from Invoice.src._helpers import _exception_helper
 import logging
 from enum import Enum, auto
@@ -14,6 +14,7 @@ OPUS_CSV_HEADERS = ["Artskonto", "Omkostningssted", "PSP-element", "Profitcenter
 IFRAME_SELECTORS = [
                 'iframe[name*="URLSPW"]',
                 'iframe[name*="SPW"]',
+                'iframe[name*="URL"]',
                 'iframe[name*="popup"]',
                 'iframe[name*="dialog"]',
                 'iframe[name*="modal"]',
@@ -44,19 +45,59 @@ class OpusConfig(BaseModel):
 #### ********************************************************************************************************************
 #### ********************************************************************************************************************
 class InvoiceData(BaseModel):
-    Debet_PSP: constr(min_length=1)
-    Kredit_PSP: constr(min_length=1)
+    Debet_PSP: str
+    Kredit_PSP: str
     Tekst: str
     Reference: str
-    Bogføringsdato: constr(pattern=r"^\d{2}\.\d{2}\.\d{4}$")  # "dd.mm.yyyy"
+    Bogføringsdato: str
     Kommentar: str
-    Debet_Artskonto: constr(pattern=r"^\d{8}$")  # 8-digit account number
-    Kredit_Artskonto: constr(pattern=r"^\d{8}$")
+    Debet_Artskonto: str
+    Kredit_Artskonto: str
     Debet_PosteringsTekst: str
     Kredit_PosteringsTekst: str
-    Kost: float
-    BilagsFilePath: FilePath
-    csv_filename: FilePath    
+    Kost: confloat(gt=0.0)
+    BilagsFilePath: Union[FilePath, str] = ""
+    csv_filename: FilePath
+
+    # --- Validators ---
+
+    @field_validator("Tekst")
+    def validate_tekst_not_empty(cls, v):
+        if not v or len(v.strip()) == 0:
+            raise ValueError("Tekst must not be empty")
+        return v
+
+    @field_validator("Bogføringsdato")
+    def validate_date_format(cls, v):
+        if len(v.strip()) == 0:
+            return v  # allow empty
+        if not re.match(r"^\d{2}\.\d{2}\.\d{4}$", v):
+            raise ValueError("Bogføringsdato must be in format dd.mm.yyyy (e.g. 12.09.2025)")
+        return v
+
+    @field_validator("Debet_Artskonto", "Kredit_Artskonto")
+    def validate_artskonto(cls, v, info: ValidationInfo):
+        if not v.isdigit() or len(v) != 8:
+            raise ValueError(f"{info.field_name} must be exactly 8 digits (e.g. 40000000)")
+        return v
+    
+    @field_validator("BilagsFilePath")
+    def allow_empty_or_valid_path(cls, v):
+        if v == "":
+            return v
+        return FilePath(v) 
+    
+    # --- Cross-field validator ---
+    @model_validator(mode="after")
+    def validate_psp_pair(self):
+        debet = self.Debet_PSP.strip()
+        kredit = self.Kredit_PSP.strip()
+
+        if (len(debet) == 0 and len(kredit) == 0) or (len(debet) > 0 and len(kredit) > 0):
+            return self
+
+        raise ValueError("Debet_PSP and Kredit_PSP must either both be empty or both filled")
+        
 #### ********************************************************************************************************************
 #### ********************************************************************************************************************
 class nkInvoice(BaseModel):
@@ -92,6 +133,13 @@ class nkInvoice(BaseModel):
             return self._result
     ### ------------------------------------------------------------------------------------------------------
     ### PRIVATE METHODS
+    def verbose_log_frames(self):
+        if self._verbose:
+            frames = self._page.frames
+            self._log(message=f"Total frames found: {len(frames)}", level=LogLevel.DEBUG)
+            for i, frame in enumerate(frames):
+                self._log(message=f"Frame {i}: name='{frame.name}'", level=LogLevel.DEBUG)
+                
     def _log_verbose(self, message: str):
         if self._verbose:
             self._log(message=message, level=LogLevel.DEBUG)
@@ -114,9 +162,9 @@ class nkInvoice(BaseModel):
     def _fill_opus_page(self):
         # Fill the OPUS page with invoice data
         self._log(message="Start filling data in OPUS page", level=LogLevel.INFO)
-        Invoice = False
-        status_text = "Not runned"
-        text = "Not runned"
+        Invoice = "Fejlet"
+        status_text = "Ikke afviklet"
+        text = "Ikke afviklet"
         # Wait for page to load
         self._log_verbose(message="Waiting for OPUS page to load")
         self._page.wait_for_load_state('networkidle')
@@ -136,10 +184,10 @@ class nkInvoice(BaseModel):
         status_text = self._check_invoice()
         self._log_verbose(message=f"Status text after checking invoice: {status_text}")
         if status_text == 'Omposteringsbilaget er kontrolleret og OK':
-            Invoice = True
+            Invoice = "Succes"
             text = "Bilag oprettet"
         else:
-            Invoice = False
+            Invoice = "Fejlet"
             text = "Bilag ikke oprettet"
         # Opret bilag
         self._result = {"status": Invoice, "message": text, "Bilag": status_text}
@@ -148,17 +196,20 @@ class nkInvoice(BaseModel):
     def check_login_error(self):
         # Wait until the form is visible (ensures DOM is loaded)
         try:
-            self._page.wait_for_selector("#loginForm")
+            self._log_verbose(message="Checking for login error messages")
+            self._page.wait_for_selector("#loginForm", timeout=2000)
 
             # Check if error element exists and is visible
             error_locator = self._page.locator("#errorText")
 
             if error_locator.is_visible():
                 error_message = error_locator.inner_text()
+                self._log_verbose(message=f"Login error message found: {error_message}")
                 return error_message
             else:
                 return None            
         except:
+            self._log_verbose(message="No login error message found")
             return None
     ### ***********************************************************
     @_exception_helper
@@ -173,6 +224,7 @@ class nkInvoice(BaseModel):
         self._page.get_by_role("button", name="Sign in").click()
         
         try:
+            self._log_verbose(message="Waiting for network to be idle after login")
             self._page.wait_for_load_state('networkidle', timeout=10000)
         except:
             pass
@@ -240,6 +292,8 @@ class nkInvoice(BaseModel):
     ### ***********************************************************
     @_exception_helper
     def _fill_value(self, label_name, value):
+        if not value or len(value.strip()) == 0:
+            return
         self._log(message=f"Filling value for {label_name}: {value}", level=LogLevel.INFO)
         frame = self._page.frame_locator("#contentAreaFrame").frame_locator("#isolatedWorkArea")
         input = frame.get_by_text(label_name, exact=True)
@@ -257,6 +311,9 @@ class nkInvoice(BaseModel):
     ### ***********************************************************
     @_exception_helper
     def _fill_comments(self, value):
+        if not value or len(value.strip()) == 0:
+            return
+
         self._log(message=f"Filling comments: {value}", level=LogLevel.INFO)
         frame = self._page.frame_locator("#contentAreaFrame").frame_locator("#isolatedWorkArea")
         input = frame.get_by_text("Valuta", exact=True)
@@ -269,6 +326,9 @@ class nkInvoice(BaseModel):
     ### ***********************************************************
     @_exception_helper
     def _fill_attachment(self):
+        if self.invoice_data.BilagsFilePath is None or len(str(self.invoice_data.BilagsFilePath)) == 0:
+            self._log_verbose(message="No attachment file path provided, skipping attachment step")
+            return
         self._log(message="Filling attachment", level=LogLevel.INFO)
         """Handle file attachment in popup window"""
         # Click the attachment button
@@ -283,10 +343,13 @@ class nkInvoice(BaseModel):
         
         # Check all iframes for file input (SAP uses direct file input, not "Choose File" button)
         # Try each iframe selector
+        # verbose logging of frames
+        self.verbose_log_frames()
+                
         attachment_file=False
         for iframe_selector in IFRAME_SELECTORS:
             try:
-                self._log_verbose(message=f"Trying iframe selector: {iframe_selector}")
+                self._log(message=f"Trying iframe selector: {iframe_selector}")
                 iframe = self._page.frame_locator(iframe_selector)
                 # Look for file input directly (SAP doesn't use "Choose File" button)
                 file_input = iframe.locator('input[type="file"]').first
@@ -323,11 +386,13 @@ class nkInvoice(BaseModel):
         # Wait longer for popup to appear and check for new windows/popups
         self._log_verbose(message="Waiting for CSV import popup")
         self._page.wait_for_timeout(2000)  # Wait 3 seconds for popup
-        
+        # verbose logging of frames
+        self.verbose_log_frames()
+
         attachment_file=False
         for iframe_selector in IFRAME_SELECTORS:
             try:
-                self._log_verbose(message=f"Trying iframe selector: {iframe_selector}")
+                self._log(message=f"Trying iframe selector: {iframe_selector}")
                 # Try each iframe selector
                 iframe = self._page.frame_locator(iframe_selector)
             
@@ -393,7 +458,7 @@ if __name__ == '__main__':
     opus_username = os.getenv('OPUS_USER')
     opus_userpassword = os.getenv('OPUS_USER_PASSWORD')
     
-    logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
     logger = logging.getLogger(__name__)
     d = date.today()
     
