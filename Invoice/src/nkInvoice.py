@@ -45,16 +45,16 @@ class OpusConfig(BaseModel):
 #### ********************************************************************************************************************
 #### ********************************************************************************************************************
 class InvoiceData(BaseModel):
-    Debet_PSP: str
-    Kredit_PSP: str
+    Debet_PSP: str|None = ""
+    Kredit_PSP: str|None = ""
     Tekst: str
-    Reference: str
-    Bogføringsdato: str
-    Kommentar: str
-    Debet_Artskonto: str
-    Kredit_Artskonto: str
-    Debet_PosteringsTekst: str
-    Kredit_PosteringsTekst: str
+    Reference: str|None = ""
+    Bogføringsdato: str|None = ""
+    Kommentar: str|None = ""
+    Debet_Artskonto: int = Field(gt=9999999, lt=100000000)
+    Kredit_Artskonto: int = Field(gt=9999999, lt=100000000)
+    Debet_PosteringsTekst: str|None = ""
+    Kredit_PosteringsTekst: str|None = ""
     Kost: confloat(gt=0.0)
     BilagsFilePath: Union[FilePath, str] = ""
     csv_filename: FilePath
@@ -75,11 +75,11 @@ class InvoiceData(BaseModel):
             raise ValueError("Bogføringsdato must be in format dd.mm.yyyy (e.g. 12.09.2025)")
         return v
 
-    @field_validator("Debet_Artskonto", "Kredit_Artskonto")
-    def validate_artskonto(cls, v, info: ValidationInfo):
-        if not v.isdigit() or len(v) != 8:
-            raise ValueError(f"{info.field_name} must be exactly 8 digits (e.g. 40000000)")
-        return v
+    # @field_validator("Debet_Artskonto", "Kredit_Artskonto")
+    # def validate_artskonto(cls, v, info: ValidationInfo):
+    #     if not v.isdigit() or len(v) != 8:
+    #         raise ValueError(f"{info.field_name} must be exactly 8 digits (e.g. 40000000)")
+    #     return v
     
     @field_validator("BilagsFilePath")
     def allow_empty_or_valid_path(cls, v):
@@ -254,25 +254,25 @@ class nkInvoice(BaseModel):
             [
                 self.invoice_data.Debet_Artskonto,
                 "",
-                self.invoice_data.Debet_PSP,
+                self.invoice_data.Debet_PSP if self.invoice_data.Debet_PSP else "",
                 "",
                 "",
                 "Debet",
                 self.invoice_data.Kost,
                 "",
-                self.invoice_data.Debet_PosteringsTekst,
+                self.invoice_data.Debet_PosteringsTekst if self.invoice_data.Debet_PosteringsTekst else "",
                 "","","","","","","","","","","","","","",""
             ],
             [
                 self.invoice_data.Kredit_Artskonto,
                 "",
-                self.invoice_data.Kredit_PSP,
+                self.invoice_data.Kredit_PSP if self.invoice_data.Kredit_PSP else "",
                 "",
                 "",
                 "Kredit",
                 self.invoice_data.Kost,
                 "",
-                self.invoice_data.Kredit_PosteringsTekst,
+                self.invoice_data.Kredit_PosteringsTekst if self.invoice_data.Kredit_PosteringsTekst else "",
                 "","","","","","","","","","","","","","",""
             ]
         ]
@@ -347,27 +347,34 @@ class nkInvoice(BaseModel):
         self.verbose_log_frames()
                 
         attachment_file=False
-        for iframe_selector in IFRAME_SELECTORS:
-            try:
-                self._log(message=f"Trying iframe selector: {iframe_selector}")
-                iframe = self._page.frame_locator(iframe_selector)
-                # Look for file input directly (SAP doesn't use "Choose File" button)
-                file_input = iframe.locator('input[type="file"]').first
-                if file_input.is_visible():
-                    # Click the file input first to trigger file dialog
-                    self._log_verbose(message=f"Clicking file input to trigger file dialog...")
-                    with self._page.expect_file_chooser() as fc_info:
-                        file_input.click()
-                        file_chooser = fc_info.value
-                        file_chooser.set_files(self.invoice_data.BilagsFilePath)
-                    attachment_file=True
-                    self._log(message="File attached successfully", level=LogLevel.INFO)
-                    break
-            except Exception as e:
-                self._log(message=f"Error with iframe {iframe_selector}: {e}", level=LogLevel.ERROR)
-                continue
+        retries = 3
+        # Try multiple times to find the correct iframe and attach the file
+        for attempt in range(retries):
+            self._log_verbose(message=f"Attachment attempt {attempt + 1} of {retries}")
+            for iframe_selector in IFRAME_SELECTORS:
+                try:
+                    self._log(message=f"Trying iframe selector: {iframe_selector}")
+                    iframe = self._page.frame_locator(iframe_selector)
+                    # Look for file input directly (SAP doesn't use "Choose File" button)
+                    file_input = iframe.locator('input[type="file"]').first
+                    if file_input.is_visible():
+                        # Click the file input first to trigger file dialog
+                        self._log_verbose(message=f"Clicking file input to trigger file dialog...")
+                        with self._page.expect_file_chooser() as fc_info:
+                            file_input.click()
+                            file_chooser = fc_info.value
+                            file_chooser.set_files(self.invoice_data.BilagsFilePath)
+                        attachment_file=True
+                        self._log(message="File attached successfully", level=LogLevel.INFO)
+                        break
+                except Exception as e:
+                    self._log(message=f"Error with iframe {iframe_selector}: {e}", level=LogLevel.ERROR)
+                    continue
+            if attachment_file:
+                break
             
         # Wait a moment for the file to be processed
+        self._log_verbose(message=f'Attachment file set: {attachment_file}')
         self._log_verbose(message="Waiting for file to be processed")
         self._page.wait_for_timeout(4000)
         ok_button = iframe.locator("div.lsButton:has(span:has-text('OK'))")
@@ -457,12 +464,19 @@ if __name__ == '__main__':
     load_dotenv()
     opus_username = os.getenv('OPUS_USER')
     opus_userpassword = os.getenv('OPUS_USER_PASSWORD')
-    
+    opus_url = os.getenv('OPUS_URL')
+    opus_municipality_code = int(os.getenv('OPUS_MUNICIPALITY_CODE'))
+                                           
     logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
     logger = logging.getLogger(__name__)
     d = date.today()
     
-    opus = OpusConfig(municipality_code=370, username=opus_username, password=opus_userpassword)
+    opus_data = {
+        "url":opus_url,
+        "municipality_code":opus_municipality_code,
+        "username":opus_username, 
+        "password":opus_userpassword
+    }
     invoice_data = {
             "Debet_PSP":"XG-0000000204-00001",
             "Kredit_PSP":"XG-0000002473-00029",
@@ -479,7 +493,7 @@ if __name__ == '__main__':
             "csv_filename":"/Users/lakas/tmp/opus.csv"
         }
     try:
-        invoice = nkInvoice(opus_data=opus, invoice_data=invoice_data)
+        invoice = nkInvoice(opus_data=opus_data, invoice_data=invoice_data)
         ## For testing, set headless to False and verbose to True
         invoice._headless=False
         invoice._verbose=True

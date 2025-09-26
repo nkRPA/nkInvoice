@@ -28,6 +28,9 @@ class TestInvoice(unittest.TestCase):
         load_dotenv()
         self.opus_username = os.getenv('OPUS_USER')
         self.opus_userpassword = os.getenv('OPUS_USER_PASSWORD')
+        self.opus_url = os.getenv('OPUS_URL')
+        self.opus_municipality_code = int(os.getenv('OPUS_MUNICIPALITY_CODE'))
+
     def tearDown(self):
         # Teardown code: clean up resources
         # Example: del self.invoice
@@ -38,7 +41,7 @@ class TestInvoice(unittest.TestCase):
         else:
             data = self.invoice_data.copy()
         data[key] = value
-        opus = OpusConfig(municipality_code=370, username="bruger", password="kode1234")
+        opus = OpusConfig(url=self.opus_url, municipality_code=self.opus_municipality_code, username="bruger", password="kode1234")
         invoice = nkInvoice(opus_data=opus, invoice_data=data)
     ########################################################################################################################
     ### Tests        
@@ -48,17 +51,17 @@ class TestInvoice(unittest.TestCase):
 
         # test missing password
         try:
-            opus = OpusConfig(municipality_code=370, username="username")
+            opus = OpusConfig(url=self.opus_url, municipality_code=self.opus_municipality_code, username="username")
         except Exception as e:
             self.assertTrue("password" in str(e).lower() and "missing" in str(e).lower())
         # test missing username
         try:
-            opus = OpusConfig(municipality_code=370, password="passseord")
+            opus = OpusConfig(url=self.opus_url, municipality_code=self.opus_municipality_code, password="passseord")
         except Exception as e:
             self.assertTrue("username" in str(e).lower() and "missing" in str(e).lower())
         # test missing municipality_code
         try:
-            opus = OpusConfig(username="bruger", password="pasord")
+            opus = OpusConfig(url=self.opus_url, username="bruger", password="pasord")
         except Exception as e:
             self.assertTrue("municipality_code" in str(e).lower() and "missing" in str(e).lower())  
     # *************************************************************************************************************
@@ -124,7 +127,7 @@ class TestInvoice(unittest.TestCase):
     # *************************************************************************************************************
     def test_invoice_Debet_Artskonto_data(self):
         try:
-            self._testdata("Debet_Artskonto", "40000000")
+            self._testdata("Debet_Artskonto", 40000000)
         except Exception as e:
             self.assertTrue(False)
         # Edge cases - wrong format
@@ -132,16 +135,16 @@ class TestInvoice(unittest.TestCase):
         try:
             self._testdata("Debet_Artskonto", "")
         except Exception as e:
-            self.assertTrue("Value error, Debet_Artskonto must be exactly 8 digits (e.g. 40000000)".lower() in str(e).lower())  
+            self.assertTrue("Input should be a valid integer, unable to parse string as an integer".lower() in str(e).lower())  
         
         try:
-            self._testdata("Debet_Artskonto", "4000")
+            self._testdata("Debet_Artskonto", 4000)
         except Exception as e:
-            self.assertTrue("Value error, Debet_Artskonto must be exactly 8 digits (e.g. 40000000)".lower() in str(e).lower())  
+            self.assertTrue("Input should be greater than 9999999".lower() in str(e).lower())  
     # *************************************************************************************************************
     def test_invoice_Kredit_Artskonto_data(self):
         try:
-            self._testdata("Kredit_Artskonto", "40000000")
+            self._testdata("Kredit_Artskonto", 40000000)
         except Exception as e:
             self.assertTrue(False)
         # Edge cases - wrong format
@@ -149,12 +152,12 @@ class TestInvoice(unittest.TestCase):
         try:
             self._testdata("Kredit_Artskonto", "")
         except Exception as e:
-            self.assertTrue("Value error, Kredit_Artskonto must be exactly 8 digits (e.g. 40000000)".lower() in str(e).lower())  
+            self.assertTrue("Input should be a valid integer, unable to parse string as an integer".lower() in str(e).lower())  
         
         try:
-            self._testdata("Kredit_Artskonto", "4000")
+            self._testdata("Kredit_Artskonto", 4000)
         except Exception as e:
-            self.assertTrue("Value error, Kredit_Artskonto must be exactly 8 digits (e.g. 40000000)".lower() in str(e).lower())  
+            self.assertTrue("Input should be greater than 9999999".lower() in str(e).lower())  
     # *************************************************************************************************************
     def test_invoice_Debet_PosteringsTekst_data(self):
             try:
@@ -191,7 +194,7 @@ class TestInvoice(unittest.TestCase):
     # *************************************************************************************************************
     def test_invoice_creation_login(self):
         try:
-            opus = OpusConfig(municipality_code=370, username="bruger", password="kode1234")
+            opus = OpusConfig(url=self.opus_url, municipality_code=self.opus_municipality_code, username="bruger", password="kode1234")
             invoice = nkInvoice(opus_data=opus, invoice_data=self.invoice_data)
             invoice.create_invoice()
         except Exception as e:
@@ -199,7 +202,7 @@ class TestInvoice(unittest.TestCase):
             #Error: Error in function '_start_opus_rollebaseret': Login failed: Enter your user ID in the format "domain\user" or "user@domain".
             self.assertTrue("_start_opus_rollebaseret" in str(e).lower() and "login failed" in str(e).lower())  
         try:
-            opus = OpusConfig(municipality_code=370, username=self.opus_username, password="kode1234")
+            opus = OpusConfig(url=self.opus_url, municipality_code=self.opus_municipality_code, username=self.opus_username, password="kode1234")
             invoice = nkInvoice(opus_data=opus, invoice_data=self.invoice_data)
             invoice.create_invoice()
         except Exception as e:
@@ -237,7 +240,7 @@ class TestInvoice(unittest.TestCase):
     # *************************************************************************************************************
     def test_invoice_creation_all_fields(self):
         d = date.today()
-        opus = OpusConfig(municipality_code=370, username=self.opus_username, password=self.opus_userpassword)
+        opus = OpusConfig(url=self.opus_url, municipality_code=self.opus_municipality_code, username=self.opus_username, password=self.opus_userpassword)
         invoice_data = self.invoice_data.copy()
         invoice = nkInvoice(opus_data=opus, invoice_data=invoice_data)
         invoice._headless=False
@@ -256,7 +259,7 @@ class TestInvoice(unittest.TestCase):
     # *************************************************************************************************************
     def test_invoice_creation_all_fields_except_bilag(self):
         d = date.today()
-        opus = OpusConfig(municipality_code=370, username=self.opus_username, password=self.opus_userpassword)
+        opus = OpusConfig(url=self.opus_url, municipality_code=self.opus_municipality_code, username=self.opus_username, password=self.opus_userpassword)
         invoice_data = self.invoice_data.copy()
         invoice_data["BilagsFilePath"] = ""
         invoice = nkInvoice(opus_data=opus, invoice_data=invoice_data)
@@ -276,7 +279,7 @@ class TestInvoice(unittest.TestCase):
     # *************************************************************************************************************
     def test_invoice_creation_all_fields_except_Reference_Comments(self):
         d = date.today()
-        opus = OpusConfig(municipality_code=370, username=self.opus_username, password=self.opus_userpassword)
+        opus = OpusConfig(url=self.opus_url, municipality_code=self.opus_municipality_code, username=self.opus_username, password=self.opus_userpassword)
         invoice_data = self.invoice_data.copy()
         invoice_data["Reference"] = ""
         invoice_data["Kommentar"] = ""
