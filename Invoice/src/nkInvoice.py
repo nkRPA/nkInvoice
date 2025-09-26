@@ -1,6 +1,7 @@
 import re
 import csv
 import sys
+from pathlib import Path
 from playwright.sync_api import Playwright, sync_playwright, expect
 from playwright.sync_api import Browser, BrowserContext, Page
 # from setup.Constants import Constants
@@ -62,7 +63,7 @@ class InvoiceData(BaseModel):
     Kredit_PosteringsTekst: str|None = ""
     Kost: confloat(gt=0.0)
     BilagsFilePath: Union[FilePath, str] = ""
-    csv_filename: FilePath
+    csv_filename: Path
 
     # --- Validators ---
 
