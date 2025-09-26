@@ -6,10 +6,7 @@ readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
     "dotenv>=0.9.9",
-    "nkdatabase",
     "playwright>=1.55.0",
     "pydantic>=2.11.9",
 ]
-
-[tool.uv.sources]
-nkdatabase = { git = "https://github.com/nkCommon/nkDatabase_Public.git" }
+ 

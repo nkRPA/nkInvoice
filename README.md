@@ -32,16 +32,21 @@ uv sync
 ### Brug af biblioteket
 1. installer whl fil:
 ```uv
-uv add 
-```
-eller
-```pip
-pip install 
+ uv add nkinvoice@git+https://github.com/nkRPA/nkInvoice.git
 ```
 
-2. importer whl fil:
+2. importer nkInvoice:
 ```python
-from 
+from Invoice.src.nkInvoice import nkInvoice
 ```
 3. Opret .env fil
-### Eksempel
+```bash
+OPUS_USER=bruger navnet på OPUS brugeren, som skal oprette bilaget eks. = "userjx"
+OPUS_USER_PASSWORD=password for bruger navnet på OPUS brugeren, som skal oprette bilaget eks.= "Passw0rd"
+OPUS_URL=KMD Url.. eks. ="https://ssolaunchpad.kmd.dk/"
+OPUS_MUNICIPALITY_CODE=Kommune kode eks = 123
+```
+### Eksempel kode
+```python
+
+```

@@ -248,14 +248,14 @@ class TestInvoice(unittest.TestCase):
         #{'status': 'Succes', 'message': 'Bilag oprettet', 'Bilag': 'Omposteringsbilaget er kontrolleret og OK'}
         self.assertTrue(result['status'] == "Succes")
         self.assertTrue("bilag oprettet" in result['message'].lower())
-        self.assertTrue("bilaget er kontrolleret og ok" in result['Bilag'].lower())
+        self.assertTrue("bilaget er kontrolleret og ok" in result['bilag'].lower())
 
         invoice._headless=True
         result = invoice.create_invoice()
         #{'status': 'Succes', 'message': 'Bilag oprettet', 'Bilag': 'Omposteringsbilaget er kontrolleret og OK'}
         self.assertTrue(result['status'] == "Succes")
         self.assertTrue("bilag oprettet" in result['message'].lower())
-        self.assertTrue("bilaget er kontrolleret og ok" in result['Bilag'].lower())
+        self.assertTrue("bilaget er kontrolleret og ok" in result['bilag'].lower())
     # *************************************************************************************************************
     def test_invoice_creation_all_fields_except_bilag(self):
         d = date.today()
@@ -268,14 +268,14 @@ class TestInvoice(unittest.TestCase):
         #{'status': 'Succes', 'message': 'Bilag oprettet', 'Bilag': 'Omposteringsbilaget er kontrolleret og OK'}
         self.assertTrue(result['status'] == "Succes")
         self.assertTrue("bilag oprettet" in result['message'].lower())
-        self.assertTrue("bilaget er kontrolleret og ok" in result['Bilag'].lower())
+        self.assertTrue("bilaget er kontrolleret og ok" in result['bilag'].lower())
 
         invoice._headless=True
         result = invoice.create_invoice()
         #{'status': 'Succes', 'message': 'Bilag oprettet', 'Bilag': 'Omposteringsbilaget er kontrolleret og OK'}
         self.assertTrue(result['status'] == "Succes")
         self.assertTrue("bilag oprettet" in result['message'].lower())
-        self.assertTrue("bilaget er kontrolleret og ok" in result['Bilag'].lower())
+        self.assertTrue("bilaget er kontrolleret og ok" in result['bilag'].lower())
     # *************************************************************************************************************
     def test_invoice_creation_all_fields_except_Reference_Comments(self):
         d = date.today()
@@ -289,14 +289,14 @@ class TestInvoice(unittest.TestCase):
         #{'status': 'Succes', 'message': 'Bilag oprettet', 'Bilag': 'Omposteringsbilaget er kontrolleret og OK'}
         self.assertTrue(result['status'] == "Succes")
         self.assertTrue("bilag oprettet" in result['message'].lower())
-        self.assertTrue("bilaget er kontrolleret og ok" in result['Bilag'].lower())
+        self.assertTrue("bilaget er kontrolleret og ok" in result['bilag'].lower())
 
         invoice._headless=True
         result = invoice.create_invoice()
         #{'status': 'Succes', 'message': 'Bilag oprettet', 'Bilag': 'Omposteringsbilaget er kontrolleret og OK'}
         self.assertTrue(result['status'] == "Succes")
         self.assertTrue("bilag oprettet" in result['message'].lower())
-        self.assertTrue("bilaget er kontrolleret og ok" in result['Bilag'].lower())
+        self.assertTrue("bilaget er kontrolleret og ok" in result['bilag'].lower())
 
 if __name__ == '__main__':
     unittest.main()
