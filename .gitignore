@@ -211,3 +211,4 @@ database.ini
 .ini
 *.ini
 .env
+.ps1

@@ -12,7 +12,13 @@ if __name__ == '__main__':
     opus_url = os.getenv('OPUS_URL')
     opus_municipality_code = int(os.getenv('OPUS_MUNICIPALITY_CODE'))
     ## Setup logging if wanted                                           
-    logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
+    logging.basicConfig(
+        level=logging.DEBUG,
+        format="%(asctime)s - %(levelname)s - %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+        filename="/Users/lakas/tmp/nkInvoice.log",
+        filemode="w"
+    )
     logger = logging.getLogger(__name__)
     
 

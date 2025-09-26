@@ -120,6 +120,8 @@ class nkInvoice(BaseModel):
     ### PUBLIC METHODS
     def create_invoice(self):
         """Create an invoice in the Opus system using Playwright."""  
+        self._log_verbose(message="****************************************************************************")
+        self._log_verbose(message="****************************************************************************")
         self._log(message="Start creation of invoice", level=LogLevel.INFO)
         with sync_playwright() as playwright:
             self._create_csv()
