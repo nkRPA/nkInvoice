@@ -3,6 +3,7 @@ from Invoice.src.nkInvoice import nkInvoice
 import os
 from dotenv import load_dotenv
 from datetime import date
+import time
 load_dotenv()
 ## Test and example usage
 if __name__ == '__main__':
@@ -46,19 +47,25 @@ if __name__ == '__main__':
             "BilagsFilePath":"/Users/lakas/tmp/file_path.txt",
             "csv_filename":"/Users/lakas/tmp/opus.csv"
         }
-    try:
-        # Create an instance of nkInvoice
-        invoice = nkInvoice(opus_data=opus_data, invoice_data=invoice_data)
-        # Set headless and verbose mode
-        invoice._headless=False
-        invoice._verbose=True
-        ## Set logger if needed
-        invoice._logger=logging.getLogger(__name__)
-        ## Create the invoice
-        result = invoice.create_invoice()
-        # result is a dictionary with the result of the operation
-        # eks. {"status": "success", "message": "Invoice created successfully", "bilag": "123456"}
-        print(result)
-    except Exception as e:
-        print(f"Error: {e}")
+    retries = 1000
+        # Try multiple times to find the correct iframe and attach the file
+    for attempt in range(retries):
+        try:
+            print(f"Attempt {attempt + 1} of {retries}")
+            logger.info(f"Attempt {attempt + 1} of {retries}")
+            # Create an instance of nkInvoice
+            invoice = nkInvoice(opus_data=opus_data, invoice_data=invoice_data)
+            # Set headless and verbose mode
+            invoice._headless=True
+            invoice._verbose=True
+            ## Set logger if needed
+            invoice._logger=logging.getLogger(__name__)
+            ## Create the invoice
+            result = invoice.create_invoice()
+            # result is a dictionary with the result of the operation
+            # eks. {"status": "success", "message": "Invoice created successfully", "bilag": "123456"}
+            logger.info(f"Result: {result}")
+        except Exception as e:
+            print(f"Error: {e}")
+            logger.error(f"Error: {e}")
 
