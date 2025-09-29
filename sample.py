@@ -4,9 +4,29 @@ import os
 from dotenv import load_dotenv
 from datetime import date
 import time
+import platform
+
 load_dotenv()
 ## Test and example usage
 if __name__ == '__main__':
+    # Determine the OS and set log file path's accordingly
+    os_name = platform.system().lower()
+    if os_name == 'windows':
+        bilags_file_path = "C:/temp/file_path.txt"
+        csv_filename = "C:/temp/tmp/opus.csv"
+        log_filename="C:/temp/nkInvoice.log"
+    elif os_name == 'linux':
+        bilags_file_path = "/Users/lakas/tmp/file_path.txt"
+        csv_filename = "/Users/lakas/tmp/opus.csv"
+        log_filename="/Users/lakas/tmp/nkInvoice.log"
+    elif os_name == 'darwin': # macOS
+        bilags_file_path = "/Users/lakas/tmp/file_path.txt"
+        csv_filename = "/Users/lakas/tmp/opus.csv"
+        log_filename="/Users/lakas/tmp/nkInvoice.log"
+    else:
+        raise RuntimeError(f"Unsupported OS: {os_name}")
+    
+    
     ## Load environment variables    
     opus_username = os.getenv('OPUS_USER')
     opus_userpassword = os.getenv('OPUS_USER_PASSWORD')
@@ -17,7 +37,7 @@ if __name__ == '__main__':
         level=logging.DEBUG,
         format="%(asctime)s - %(levelname)s - %(message)s",
         datefmt="%Y-%m-%d %H:%M:%S",
-        filename="/Users/lakas/tmp/nkInvoice.log",
+        filename=log_filename,
         filemode="w"
     )
     logger = logging.getLogger(__name__)
@@ -44,15 +64,15 @@ if __name__ == '__main__':
             "Debet_PosteringsTekst":"Test af posterings tekst",
             "Kredit_PosteringsTekst":"Test af posterings tekst",
             "Kost":1.0,
-            "BilagsFilePath":"/Users/lakas/tmp/file_path.txt",
-            "csv_filename":"/Users/lakas/tmp/opus.csv"
+            "BilagsFilePath":bilags_file_path,
+            "csv_filename":csv_filename
         }
-    retries = 1000
+    retries = 2
         # Try multiple times to find the correct iframe and attach the file
     for attempt in range(retries):
         try:
-            print(f"Attempt {attempt + 1} of {retries}")
-            logger.info(f"Attempt {attempt + 1} of {retries}")
+            print(f"** Create Invoice attempt {attempt + 1} of {retries}")
+            logger.info(f"** Create Invoice attempt {attempt + 1} of {retries}")
             # Create an instance of nkInvoice
             invoice = nkInvoice(opus_data=opus_data, invoice_data=invoice_data)
             # Set headless and verbose mode
@@ -61,7 +81,7 @@ if __name__ == '__main__':
             ## Set logger if needed
             invoice._logger=logging.getLogger(__name__)
             ## Create the invoice
-            result = invoice.create_invoice()
+            result = invoice.create_invoice(max_retries=3, try_number=1)
             # result is a dictionary with the result of the operation
             # eks. {"status": "success", "message": "Invoice created successfully", "bilag": "123456"}
             logger.info(f"Result: {result}")
