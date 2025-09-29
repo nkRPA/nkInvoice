@@ -7,26 +7,43 @@ import time
 import platform
 
 load_dotenv()
+
+def send_internal_email(receiver_email, subject, body, smtp_server='smtp.naestved.dk', smtp_port=25, sender_email="serviceChecker@naestved.dk", logger=None):
+    """
+    Sends an email using the specified SMTP server.
+    :param smtp_server: The SMTP server address.
+    :param smtp_port: The port number for the SMTP server.
+    :param sender_email: The email address of the sender.
+    :param receiver_email: The email address of the receiver.
+    :param subject: The subject of the email.
+    :param body: The body content of the email.
+    """
+    # Create the email message
+    msg = MIMEMultipart()
+    msg['From'] = sender_email
+    msg['To'] = receiver_email
+    msg['Subject'] = subject
+    msg.attach(MIMEText(body, 'plain'))
+
+    # Send the email
+    try:
+        with smtplib.SMTP(smtp_server, smtp_port) as server:
+            server.send_message(msg)
+        
+    except Exception as e:
+        if logger:
+            logger.error(f"Failed to send email to {receiver_email}. Error: {e}")
+        else:
+            print(f"Failed to send email: {e}")
+
+
+
 ## Test and example usage
 if __name__ == '__main__':
-    # Determine the OS and set log file path's accordingly
-    os_name = platform.system().lower()
-    print(f"Operating System: {os_name}")
-    if os_name == 'windows':
-        bilags_file_path = "C:/temp/file_path.txt"
-        csv_filename = "C:/temp/opus.csv"
-        log_filename="C:/temp/nkInvoice.log"
-    elif os_name == 'linux':
-        bilags_file_path = "/Users/lakas/tmp/file_path.txt"
-        csv_filename = "/Users/lakas/tmp/opus.csv"
-        log_filename="/Users/lakas/tmp/nkInvoice.log"
-    elif os_name == 'darwin': # macOS
-        bilags_file_path = "/Users/lakas/tmp/file_path.txt"
-        csv_filename = "/Users/lakas/tmp/opus.csv"
-        log_filename="/Users/lakas/tmp/nkInvoice.log"
-    else:
-        raise RuntimeError(f"Unsupported OS: {os_name}")
-    
+
+    bilags_file_path = "file_path.txt"
+    csv_filename = "opus.csv"
+    log_filename="nkInvoice.log"
     
     ## Load environment variables    
     opus_username = os.getenv('OPUS_USER')
