@@ -11,9 +11,10 @@ load_dotenv()
 if __name__ == '__main__':
     # Determine the OS and set log file path's accordingly
     os_name = platform.system().lower()
+    print(f"Operating System: {os_name}")
     if os_name == 'windows':
         bilags_file_path = "C:/temp/file_path.txt"
-        csv_filename = "C:/temp/tmp/opus.csv"
+        csv_filename = "C:/temp/opus.csv"
         log_filename="C:/temp/nkInvoice.log"
     elif os_name == 'linux':
         bilags_file_path = "/Users/lakas/tmp/file_path.txt"
