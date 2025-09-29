@@ -119,7 +119,7 @@ if __name__ == '__main__':
             "BilagsFilePath":bilags_file_path,
             "csv_filename":csv_filename
         }
-    retries = 1000
+    retries = 2
         # Try multiple times to find the correct iframe and attach the file
     for attempt in range(retries):
         try:
