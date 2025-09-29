@@ -3,20 +3,36 @@ from Invoice.src.nkInvoice import nkInvoice
 import os
 from dotenv import load_dotenv
 from datetime import date
-import time
-import platform
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+
+from email.mime.application import MIMEApplication
 
 load_dotenv()
 
-def send_internal_email(receiver_email, subject, body, smtp_server='smtp.naestved.dk', smtp_port=25, sender_email="serviceChecker@naestved.dk", logger=None):
+
+def send_internal_email(
+    receiver_email,
+    subject,
+    body,
+    smtp_server='smtp.naestved.dk',
+    smtp_port=25,
+    sender_email="serviceChecker@naestved.dk",
+    logger=None,
+    attachments=None
+):
     """
     Sends an email using the specified SMTP server.
-    :param smtp_server: The SMTP server address.
-    :param smtp_port: The port number for the SMTP server.
-    :param sender_email: The email address of the sender.
+    
     :param receiver_email: The email address of the receiver.
     :param subject: The subject of the email.
     :param body: The body content of the email.
+    :param smtp_server: The SMTP server address.
+    :param smtp_port: The port number for the SMTP server.
+    :param sender_email: The email address of the sender.
+    :param logger: Optional logger for error handling.
+    :param attachments: List of file paths to attach.
     """
     # Create the email message
     msg = MIMEMultipart()
@@ -24,6 +40,20 @@ def send_internal_email(receiver_email, subject, body, smtp_server='smtp.naestve
     msg['To'] = receiver_email
     msg['Subject'] = subject
     msg.attach(MIMEText(body, 'plain'))
+
+    # Add attachments if provided
+    if attachments:
+        for file_path in attachments:
+            try:
+                with open(file_path, "rb") as f:
+                    part = MIMEApplication(f.read(), Name=os.path.basename(file_path))
+                part['Content-Disposition'] = f'attachment; filename="{os.path.basename(file_path)}"'
+                msg.attach(part)
+            except Exception as e:
+                if logger:
+                    logger.error(f"Could not attach file {file_path}: {e}")
+                else:
+                    print(f"Could not attach file {file_path}: {e}")
 
     # Send the email
     try:
@@ -37,14 +67,18 @@ def send_internal_email(receiver_email, subject, body, smtp_server='smtp.naestve
             print(f"Failed to send email: {e}")
 
 
-
 ## Test and example usage
 if __name__ == '__main__':
-
+    
+    receiver_email = "lakas@naestved.dk"
+    subject = "Test email from nkInvoice"
+    body = "This is a test email sent from the nkInvoice script."
+    
     bilags_file_path = "file_path.txt"
     csv_filename = "opus.csv"
     log_filename="nkInvoice.log"
-    
+    send_internal_email(receiver_email, subject, body, smtp_server='smtp.naestved.dk', smtp_port=2552, sender_email="InvoiceTetser@naestved.dk")
+
     ## Load environment variables    
     opus_username = os.getenv('OPUS_USER')
     opus_userpassword = os.getenv('OPUS_USER_PASSWORD')
@@ -85,7 +119,7 @@ if __name__ == '__main__':
             "BilagsFilePath":bilags_file_path,
             "csv_filename":csv_filename
         }
-    retries = 2
+    retries = 1000
         # Try multiple times to find the correct iframe and attach the file
     for attempt in range(retries):
         try:
@@ -107,3 +141,5 @@ if __name__ == '__main__':
             print(f"Error: {e}")
             logger.error(f"Error: {e}")
 
+
+    send_internal_email(receiver_email, subject, body, smtp_server='smtp.naestved.dk', smtp_port=2552, sender_email="InvoiceTetser@naestved.dk", attachments=[log_filename])
