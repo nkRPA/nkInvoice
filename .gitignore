@@ -212,3 +212,7 @@ database.ini
 *.ini
 .env
 .ps1
+.txt
+*.txt
+*.log
+*.csv

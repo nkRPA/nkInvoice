@@ -10,18 +10,18 @@ from typing import Optional, Union
 from Invoice.src._helpers import _exception_helper
 import logging
 from enum import Enum, auto
+import time
+#### ********************************************************************************************************************
 
 OPUS_CSV_HEADERS = ["Artskonto", "Omkostningssted", "PSP-element", "Profitcenter", "Ordre", "Debet/kredit", "Beløb", "Næste agent", "Tekst", "Betalingsart", "Påligningsår", "Betalingsmodtagernr.", "Betalingsmodtagernr.kode", "Ydelsesmodtagernr.", "Ydelsesmodtagernr.kode", "Ydelsesperiode fra", "Ydelsesperiode til", "Oplysningspligtnr.", "Oplysningspligtmodtagernr.kode", "Oplysningspligtkode", "Netværk", "Operation", "Mængde", "Mængdeenhed", "Referencenøgle"] 
 IFRAME_SELECTORS = [
+                'iframe[name*="URLSPW-0"]',
                 'iframe[name*="URLSPW"]',
                 'iframe[name*="SPW"]',
                 'iframe[name*="URL"]',
                 'iframe[name*="popup"]',
                 'iframe[name*="dialog"]',
-                'iframe[name*="modal"]',
-                'iframe[name*="content"]',
-                'iframe[name*="work"]',
-                'iframe:visible'
+                'iframe[name*="modal"]'
             ]
 #### ********************************************************************************************************************
 #### ********************************************************************************************************************
@@ -97,7 +97,6 @@ class InvoiceData(BaseModel):
             return self
 
         raise ValueError("Debet_PSP and Kredit_PSP must either both be empty or both filled")
-        
 #### ********************************************************************************************************************
 #### ********************************************************************************************************************
 class nkInvoice(BaseModel):
@@ -119,19 +118,43 @@ class nkInvoice(BaseModel):
     ### Methods
     ### ------------------------------------------------------------------------------------------------------
     ### PUBLIC METHODS
-    def create_invoice(self):
-        """Create an invoice in the Opus system using Playwright."""  
-        self._log_verbose(message="****************************************************************************")
-        self._log_verbose(message="****************************************************************************")
-        self._log(message="Start creation of invoice", level=LogLevel.INFO)
-        with sync_playwright() as playwright:
-            self._create_csv()
-            self._start_opus_rollebaseret(playwright)
-            self._fill_opus_page()
-            self._context.close()
-            self._browser.close()
-            self._log(message="End creation of invoice", level=LogLevel.INFO)
-            return self._result
+    def create_invoice(self, max_retries: int = 3, try_number: int = 1) -> dict:
+        
+        """Create an invoice in the Opus system using Playwright.
+            runs the full process of creating an invoice in Opus using the provided invoice data.
+            retries try_number <= max_retries times in case of transient errors.
+        Args:
+            max_retries (int): Number of retries for transient errors. Default is 3.
+            try_number (int): Current attempt number. Default is 1.
+            
+        Returns:
+            dict: Result of the invoice creation process.
+        Raises:
+            ValueError: If there are validation errors in the input data.
+            """  
+        try:
+            self._log_verbose(message="****************************************************************************")
+            self._log(message="Start creation of invoice", level=LogLevel.INFO)
+            with sync_playwright() as playwright:
+                self._create_csv()
+                self._start_opus_rollebaseret(playwright)
+                self._fill_opus_page()
+                self._log(message="End creation of invoice", level=LogLevel.INFO)
+                return self._result
+        except Exception as e:
+            try:
+                self._context.close()
+                self._browser.close()
+            except:
+                pass
+            if try_number <= max_retries:
+                self._log(message=f"Retrying invoice creation, attempt {try_number + 1} of {max_retries}", level=LogLevel.WARNING)
+                return self.create_invoice(max_retries=max_retries, try_number = try_number + 1)
+            self._log(message=f"Failed to create invoice after {max_retries} attempts", level=LogLevel.ERROR)
+            
+            func_name = __name__
+            raise RuntimeError(f"Error in function '{func_name}': {e}") from e
+        
     ### ------------------------------------------------------------------------------------------------------
     ### PRIVATE METHODS
     def verbose_log_frames(self):
@@ -355,39 +378,38 @@ class nkInvoice(BaseModel):
         self.verbose_log_frames()
                 
         attachment_file=False
-        retries = 3
         # Try multiple times to find the correct iframe and attach the file
-        for attempt in range(retries):
-            self._log_verbose(message=f"Attachment attempt {attempt + 1} of {retries}")
-            for iframe_selector in IFRAME_SELECTORS:
-                try:
-                    self._log(message=f"Trying iframe selector: {iframe_selector}")
-                    iframe = self._page.frame_locator(iframe_selector)
-                    # Look for file input directly (SAP doesn't use "Choose File" button)
-                    file_input = iframe.locator('input[type="file"]').first
-                    if file_input.is_visible():
-                        # Click the file input first to trigger file dialog
-                        self._log_verbose(message=f"Clicking file input to trigger file dialog...")
-                        with self._page.expect_file_chooser() as fc_info:
-                            file_input.click()
-                            file_chooser = fc_info.value
-                            file_chooser.set_files(file_path)
-                        attachment_file=True
-                        self._log(message="File attached successfully", level=LogLevel.INFO)
-                        break
-                except Exception as e:
-                    self._log(message=f"Error with iframe {iframe_selector}: {e}", level=LogLevel.ERROR)
-                    continue
-            if attachment_file:
-                break
+        for iframe_selector in IFRAME_SELECTORS:
+            try:
+                self._log(message=f"Trying iframe selector: {iframe_selector}")
+                iframe = self._page.frame_locator(iframe_selector)
+                # Look for file input directly (SAP doesn't use "Choose File" button)
+                file_input = iframe.locator('input[type="file"]').first
+                if file_input.is_visible():
+                    # Click the file input first to trigger file dialog
+                    self._log_verbose(message=f"Clicking file input to trigger file dialog...")
+                    with self._page.expect_file_chooser() as fc_info:
+                        file_input.click()
+                        file_chooser = fc_info.value
+                        file_chooser.set_files(file_path)
+                    attachment_file=True
+                    self._log(message="File attached successfully", level=LogLevel.INFO)
+                    break
+            except Exception as e:
+                self._log(message=f"Error with iframe {iframe_selector}: {e}", level=LogLevel.ERROR)
+                continue
             
         # Wait a moment for the file to be processed
+        if not attachment_file:
+            raise RuntimeError("Failed to attach file: No suitable iframe or file input found")
+        
         self._log_verbose(message=f'Attachment file set: {attachment_file}')
         self._log_verbose(message="Waiting for file to be processed")
         self._page.wait_for_timeout(4000)
         ok_button = iframe.locator("div.lsButton:has(span:has-text('OK'))")
         ok_button.press("Enter")                        
         self._log_verbose(message="Attachment process completed")
+        
     ### ***********************************************************
     ### ***********************************************************
     @_exception_helper
