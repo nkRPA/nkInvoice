@@ -103,8 +103,23 @@ docker-compose -f docker-compose.ubuntu.yml up --build nkinvoice-headless
 
 **Ubuntu server requirements:**
 - Docker installed and running
+- Docker Compose installed
 - User in docker group: `sudo usermod -aG docker $USER`
 - Virtual display support (Xvfb) for headless browser operation
+
+**Quick Ubuntu server setup:**
+```bash
+# Install Docker Compose (if not already installed)
+./install-docker-compose-ubuntu.sh
+
+# Or install manually:
+sudo curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+sudo chmod +x /usr/local/bin/docker-compose
+
+# Add user to docker group
+sudo usermod -aG docker $USER
+# Logout and login again, or run: newgrp docker
+```
 ### Eksempel kode
 ```python
 import logging

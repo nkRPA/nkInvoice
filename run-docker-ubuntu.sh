@@ -40,10 +40,32 @@ if ! docker info > /dev/null 2>&1; then
     exit 1
 fi
 
+# Check if docker-compose is available
+if ! command -v docker-compose > /dev/null 2>&1 && ! docker compose version > /dev/null 2>&1; then
+    echo -e "${RED}❌ docker-compose is not installed.${NC}"
+    echo -e "${YELLOW}💡 Install docker-compose with one of these methods:${NC}"
+    echo -e "${YELLOW}   # Method 1: Install docker-compose standalone${NC}"
+    echo -e "${YELLOW}   sudo curl -L \"https://github.com/docker/compose/releases/latest/download/docker-compose-\$(uname -s)-\$(uname -m)\" -o /usr/local/bin/docker-compose${NC}"
+    echo -e "${YELLOW}   sudo chmod +x /usr/local/bin/docker-compose${NC}"
+    echo -e "${YELLOW}   # Method 2: Use Docker Compose V2 (if Docker 20.10+)${NC}"
+    echo -e "${YELLOW}   # docker compose up --build nkinvoice-headless${NC}"
+    exit 1
+fi
+
 # Check if user is in docker group
 if ! groups | grep -q docker; then
     echo -e "${YELLOW}⚠️  User not in docker group. You might need to run with sudo.${NC}"
     echo -e "${YELLOW}   Or add user to docker group: sudo usermod -aG docker \$USER${NC}"
+fi
+
+# Determine which compose command to use
+if command -v docker-compose > /dev/null 2>&1; then
+    COMPOSE_CMD="docker-compose"
+elif docker compose version > /dev/null 2>&1; then
+    COMPOSE_CMD="docker compose"
+else
+    echo -e "${RED}❌ No docker-compose command found.${NC}"
+    exit 1
 fi
 
 # Determine mode
@@ -52,11 +74,11 @@ MODE=${1:-headless}
 case $MODE in
     "headless")
         echo -e "${GREEN}🔧 Running in headless mode (optimized for Ubuntu server)...${NC}"
-        docker-compose -f docker-compose.ubuntu.yml up --build nkinvoice-headless
+        $COMPOSE_CMD -f docker-compose.ubuntu.yml up --build nkinvoice-headless
         ;;
     "interactive")
         echo -e "${GREEN}🔧 Running in interactive mode...${NC}"
-        docker-compose -f docker-compose.ubuntu.yml up --build nkinvoice-test
+        $COMPOSE_CMD -f docker-compose.ubuntu.yml up --build nkinvoice-test
         ;;
 esac
 
