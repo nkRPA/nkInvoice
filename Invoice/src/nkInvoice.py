@@ -149,7 +149,7 @@ class nkInvoice(BaseModel):
                 pass
             if try_number <= max_retries:
                 self._log(message=f"Retrying invoice creation, attempt {try_number + 1} of {max_retries}", level=LogLevel.WARNING)
-                return self.create_invoice(retries=max_retries, try_number = try_number + 1)
+                return self.create_invoice(max_retries=max_retries, try_number = try_number + 1)
             self._log(message=f"Failed to create invoice after {max_retries} attempts", level=LogLevel.ERROR)
             
             func_name = __name__
