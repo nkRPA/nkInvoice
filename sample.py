@@ -77,7 +77,7 @@ if __name__ == '__main__':
     bilags_file_path = "file_path.txt"
     csv_filename = "opus.csv"
     log_filename="nkInvoice.log"
-    send_internal_email(receiver_email, subject, body, smtp_server='smtp.naestved.dk', smtp_port=2552, sender_email="InvoiceTetser@naestved.dk")
+    send_internal_email(receiver_email, subject, body, smtp_server='smtp.naestved.dk', smtp_port=2552, sender_email="InvoiceTester@naestved.dk")
 
     ## Load environment variables    
     opus_username = os.getenv('OPUS_USER')
@@ -142,4 +142,4 @@ if __name__ == '__main__':
             logger.error(f"Error: {e}")
 
 
-    send_internal_email(receiver_email, subject, body, smtp_server='smtp.naestved.dk', smtp_port=2552, sender_email="InvoiceTetser@naestved.dk", attachments=[log_filename])
+    send_internal_email(receiver_email, subject, body, smtp_server='smtp.naestved.dk', smtp_port=2552, sender_email="InvoiceTester@naestved.dk", attachments=[log_filename])
