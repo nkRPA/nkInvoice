@@ -11,6 +11,8 @@ from Invoice.src._helpers import _exception_helper
 import logging
 from enum import Enum, auto
 import time
+import asyncio
+from playwright.async_api import async_playwright
 #### ********************************************************************************************************************
 
 OPUS_CSV_HEADERS = ["Artskonto", "Omkostningssted", "PSP-element", "Profitcenter", "Ordre", "Debet/kredit", "Beløb", "Næste agent", "Tekst", "Betalingsart", "Påligningsår", "Betalingsmodtagernr.", "Betalingsmodtagernr.kode", "Ydelsesmodtagernr.", "Ydelsesmodtagernr.kode", "Ydelsesperiode fra", "Ydelsesperiode til", "Oplysningspligtnr.", "Oplysningspligtmodtagernr.kode", "Oplysningspligtkode", "Netværk", "Operation", "Mængde", "Mængdeenhed", "Referencenøgle"] 
@@ -118,7 +120,7 @@ class nkInvoice(BaseModel):
     ### Methods
     ### ------------------------------------------------------------------------------------------------------
     ### PUBLIC METHODS
-    def create_invoice(self, max_retries: int = 3, try_number: int = 1) -> dict:
+    async def create_invoice(self, max_retries: int = 3, try_number: int = 1) -> dict:
         
         """Create an invoice in the Opus system using Playwright.
             runs the full process of creating an invoice in Opus using the provided invoice data.
@@ -135,10 +137,10 @@ class nkInvoice(BaseModel):
         try:
             self._log_verbose(message="****************************************************************************")
             self._log(message="Start creation of invoice", level=LogLevel.INFO)
-            with sync_playwright() as playwright:
-                self._create_csv()
-                self._start_opus_rollebaseret(playwright)
-                self._fill_opus_page()
+            async with async_playwright() as playwright:
+                await self._create_csv()
+                await self._start_opus_rollebaseret(playwright)
+                await self._fill_opus_page()
                 self._log(message="End creation of invoice", level=LogLevel.INFO)
                 return self._result
         except Exception as e:
@@ -184,7 +186,7 @@ class nkInvoice(BaseModel):
     ### ***********************************************************
     ### Invoice creation steps
     @_exception_helper
-    def _fill_opus_page(self):
+    async def _fill_opus_page(self):
         # Fill the OPUS page with invoice data
         self._log(message="Start filling data in OPUS page", level=LogLevel.INFO)
         Invoice = "Fejlet"
@@ -192,21 +194,21 @@ class nkInvoice(BaseModel):
         text = "Ikke afviklet"
         # Wait for page to load
         self._log_verbose(message="Waiting for OPUS page to load")
-        self._page.wait_for_load_state('networkidle')
+        await self._page.wait_for_load_state('networkidle')
         # bogføringsdato
-        self._fill_value(label_name="Bogføringsdato", value=self.invoice_data.Bogføringsdato)
+        await self._fill_value(label_name="Bogføringsdato", value=self.invoice_data.Bogføringsdato)
         # Tekst
-        self._fill_value(label_name="Tekst", value=self.invoice_data.Tekst)
+        await self._fill_value(label_name="Tekst", value=self.invoice_data.Tekst)
         # Reference
-        self._fill_value(label_name="Reference", value=self.invoice_data.Reference)
+        await self._fill_value(label_name="Reference", value=self.invoice_data.Reference)
         # Kommentarer     
-        self._fill_comments(value=self.invoice_data.Kommentar)
+        await self._fill_comments(value=self.invoice_data.Kommentar)
         # Vedhæft bilag
-        self._fill_attachment()
+        await self._fill_attachment()
         # Indsæt csv posteringer
-        self._fill_csv()
+        await self._fill_csv()
         # Kontroller bilag
-        status_text = self._check_invoice()
+        status_text = await self._check_invoice()
         self._log_verbose(message=f"Status text after checking invoice: {status_text}")
         if status_text == 'Omposteringsbilaget er kontrolleret og OK':
             Invoice = "Succes"
@@ -219,17 +221,17 @@ class nkInvoice(BaseModel):
         self._log_verbose(message=f"End filling data in OPUS page with result: {self._result}")
     ### ***********************************************************
     ### ***********************************************************
-    def check_login_error(self):
+    async def check_login_error(self):
         # Wait until the form is visible (ensures DOM is loaded)
         try:
             self._log_verbose(message="Checking for login error messages")
-            self._page.wait_for_selector("#loginForm", timeout=2000)
+            await self._page.wait_for_selector("#loginForm", timeout=2000)
 
             # Check if error element exists and is visible
-            error_locator = self._page.locator("#errorText")
+            error_locator = await self._page.locator("#errorText")
 
             if error_locator.is_visible():
-                error_message = error_locator.inner_text()
+                error_message = await error_locator.inner_text()
                 self._log_verbose(message=f"Login error message found: {error_message}")
                 return error_message
             else:
@@ -240,15 +242,15 @@ class nkInvoice(BaseModel):
     ### ***********************************************************
     ### ***********************************************************
     @_exception_helper
-    def _start_opus_rollebaseret(self, playwright)-> tuple[Browser, BrowserContext, Page]:
-        self._browser = playwright.chromium.launch(headless=self._headless)
-        self._context = self._browser.new_context()
-        self._page = self._context.new_page()
+    async def _start_opus_rollebaseret(self, playwright)-> tuple[Browser, BrowserContext, Page]:
+        self._browser = await playwright.chromium.launch(headless=self._headless)
+        self._context = await self._browser.new_context()
+        self._page = await self._context.new_page()
         url = self.opus_data.valid_url()
-        self._page.goto(url)
-        self._page.get_by_role("textbox", name="User Account").fill(self.opus_data.username)
-        self._page.get_by_role("textbox", name="Password").fill(self.opus_data.password)
-        self._page.get_by_role("button", name="Sign in").click()
+        await self._page.goto(url)
+        await self._page.get_by_role("textbox", name="User Account").fill(self.opus_data.username)
+        await self._page.get_by_role("textbox", name="Password").fill(self.opus_data.password)
+        await self._page.get_by_role("button", name="Sign in").click()
         
         try:
             self._log_verbose(message="Waiting for network to be idle after login")
@@ -256,17 +258,17 @@ class nkInvoice(BaseModel):
         except:
             pass
         
-        error_message = self.check_login_error()
+        error_message = await self.check_login_error()
         if error_message:
             raise RuntimeError(f"Login failed: {error_message}")
         
-        self._page.locator("#externalCol").get_by_role("button").click()
-        self._page.get_by_text("Bilagsbehandling").click()
-        self._page.get_by_text("Opret omposteringsbilag").click()
+        await self._page.locator("#externalCol").get_by_role("button").click()
+        await self._page.get_by_text("Bilagsbehandling").click()
+        await self._page.get_by_text("Opret omposteringsbilag").click()
     ### ***********************************************************
     ### ***********************************************************
     @_exception_helper
-    def _create_csv(self):
+    async def _create_csv(self):
         """Create a CSV file for Opus import based on invoice data."""
         self._log(message="Creating CSV file for Opus import", level=LogLevel.INFO)
         ### Verbose logging of data from invoice_data
@@ -321,27 +323,27 @@ class nkInvoice(BaseModel):
     ### ***********************************************************
     ### ***********************************************************
     @_exception_helper
-    def _fill_value(self, label_name, value):
+    async def _fill_value(self, label_name, value):
         if not value or len(value.strip()) == 0:
             return
         self._log(message=f"Filling value for {label_name}: {value}", level=LogLevel.INFO)
         frame = self._page.frame_locator("#contentAreaFrame").frame_locator("#isolatedWorkArea")
         input = frame.get_by_text(label_name, exact=True)
         self._log_verbose(message="Clicking and filling input")
-        input.click()
+        await input.click()
         if sys.platform == "darwin":
-            input.press("Meta+A")
+            await input.press("Meta+A")
         else:
-            input.press("Control+A")
+            await input.press("Control+A")
         
-        input.press("Delete")
-        input.type(value)
-        input.press("Enter")
+        await input.press("Delete")
+        await input.type(value)
+        await input.press("Enter")
         self._log_verbose(message=f"Filled value for {label_name}")
     ### ***********************************************************
     ### ***********************************************************
     @_exception_helper
-    def _fill_comments(self, value):
+    async def _fill_comments(self, value):
         if not value or len(value.strip()) == 0:
             return
 
@@ -349,15 +351,15 @@ class nkInvoice(BaseModel):
         frame = self._page.frame_locator("#contentAreaFrame").frame_locator("#isolatedWorkArea")
         input = frame.get_by_text("Valuta", exact=True)
         self._log_verbose(message="Clicking and filling input")
-        input.click()
-        input.press("Tab")
-        input.type(value)
-        input.press("Enter")
+        await input.click()
+        await input.press("Tab")
+        await input.type(value)
+        await input.press("Enter")
         self._log_verbose(message="Filled comments")
     ### ***********************************************************
     ### ***********************************************************
     @_exception_helper
-    def _upload_file(self, locator:str, file_path: str):
+    async def _upload_file(self, locator:str, file_path: str):
         self._log(message=f"Uploading file:{file_path}", level=LogLevel.INFO)
         """Handle file attachment in popup window"""
         # Click the attachment button
@@ -366,11 +368,11 @@ class nkInvoice(BaseModel):
         frame = self._page.frame_locator("#contentAreaFrame").frame_locator("#isolatedWorkArea")
         attachment_button = frame.locator(locator)
         self._log_verbose(message="Clicking attachment button")
-        attachment_button.click()
+        await attachment_button.click()
         
         # Wait longer for popup to appear and check for new windows/popups
         self._log_verbose(message="Waiting for attachment popup")
-        self._page.wait_for_timeout(3000)  # Wait 3 seconds for popup
+        await self._page.wait_for_timeout(3000)  # Wait 3 seconds for popup
         
         # Check all iframes for file input (SAP uses direct file input, not "Choose File" button)
         # Try each iframe selector
@@ -388,14 +390,19 @@ class nkInvoice(BaseModel):
                 if file_input.is_visible():
                     # Click the file input first to trigger file dialog
                     self._log_verbose(message=f"Clicking file input to trigger file dialog...")
-                    with self._page.expect_file_chooser() as fc_info:
-                        file_input.click()
-                        file_chooser = fc_info.value
-                        file_chooser.set_files(file_path)
+                    async with self._page.expect_file_chooser() as fc_info:
+                        await file_input.click()
+                        file_chooser = await fc_info.value
+                        await file_chooser.set_files(file_path)
+                    # with self._page.expect_file_chooser() as fc_info:
+                    #     file_input.click()
+                    #     file_chooser = fc_info.value
+                    #     file_chooser.set_files(file_path)
                     attachment_file=True
                     self._log(message="File attached successfully", level=LogLevel.INFO)
                     break
             except Exception as e:
+                print(e)
                 self._log(message=f"Error with iframe {iframe_selector}: {e}", level=LogLevel.ERROR)
                 continue
             
@@ -407,35 +414,35 @@ class nkInvoice(BaseModel):
         self._log_verbose(message="Waiting for file to be processed")
         self._page.wait_for_timeout(4000)
         ok_button = iframe.locator("div.lsButton:has(span:has-text('OK'))")
-        ok_button.press("Enter")                        
+        await ok_button.press("Enter")                        
         self._log_verbose(message="Attachment process completed")
         
     ### ***********************************************************
     ### ***********************************************************
     @_exception_helper
-    def _fill_attachment(self):
+    async def _fill_attachment(self):
         self._log_verbose(message="Attachment process started")
         if self.invoice_data.BilagsFilePath is None or len(str(self.invoice_data.BilagsFilePath)) == 0:
             self._log_verbose(message="No attachment file path provided, skipping attachment step")
             return
-        self._upload_file(locator='div[title="Vedhæft et nyt dokument"]', file_path=str(self.invoice_data.BilagsFilePath))
+        await self._upload_file(locator='div[title="Vedhæft et nyt dokument"]', file_path=str(self.invoice_data.BilagsFilePath))
         self._log_verbose(message="Attachment process completed")
     ### ***********************************************************
     ### ***********************************************************
     @_exception_helper
-    def _fill_csv(self):
+    async def _fill_csv(self):
         """Handle file attachment in popup window"""
         self._log_verbose(message="CSV attachment process started")
-        self._upload_file(locator='div[title="Importer konteringslinjer fra EXCEL"]', file_path=str(self.invoice_data.csv_filename))
+        await self._upload_file(locator='div[title="Importer konteringslinjer fra EXCEL"]', file_path=str(self.invoice_data.csv_filename))
         self._log_verbose(message="CSV attachment process completed")
     ### ***********************************************************
     ### ***********************************************************
     @_exception_helper
-    def _get_status_text(self, frame)->str:
+    async def _get_status_text(self, frame)->str:
         self._log(message="Getting status text after invoice check", level=LogLevel.INFO)
         status_text= 'Not controlled'
         message_area = frame.locator("table.lsHTMLContainer.lsScrollContainer--positionscrolling")
-        messages = message_area.locator("span.lsTextView").all_text_contents()
+        messages = await message_area.locator("span.lsTextView").all_text_contents()
         if len(messages) > 0:
             status_text = messages[0]
             
@@ -444,15 +451,15 @@ class nkInvoice(BaseModel):
     ### ***********************************************************
     ### ***********************************************************
     @_exception_helper
-    def _check_invoice(self)->bool:
+    async def _check_invoice(self)->bool:
         self._log(message="Checking invoice", level=LogLevel.INFO)
         frame = self._page.frame_locator("#contentAreaFrame").frame_locator("#isolatedWorkArea")
         control_button = frame.locator('div[title*="Kontroller bilag"]')
         self._log_verbose(message="Clicking control button")
-        control_button.click()
+        await control_button.click()
         self._log_verbose(message="Waiting for control to complete")
-        self._page.wait_for_timeout(2000)
-        status_text = self._get_status_text(frame)
+        await self._page.wait_for_timeout(2000)
+        status_text = await self._get_status_text(frame)
         return  status_text
     ### ***********************************************************
     ### ***********************************************************
