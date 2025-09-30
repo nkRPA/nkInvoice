@@ -4,6 +4,7 @@ from pydantic import ValidationError
 import os
 from dotenv import load_dotenv
 from datetime import date
+import asyncio
 
 class TestInvoice(unittest.TestCase):
     def setUp(self):
@@ -238,46 +239,46 @@ class TestInvoice(unittest.TestCase):
         except Exception as e:
             self.assertTrue("csv_filename" in str(e).lower() and "path does not point to a file" in str(e).lower())  
     # *************************************************************************************************************
-    def test_invoice_creation_all_fields(self):
+    async def test_invoice_creation_all_fields(self):
         d = date.today()
         opus = OpusConfig(url=self.opus_url, municipality_code=self.opus_municipality_code, username=self.opus_username, password=self.opus_userpassword)
         invoice_data = self.invoice_data.copy()
         invoice = nkInvoice(opus_data=opus, invoice_data=invoice_data)
         invoice._headless=False
-        result = invoice.create_invoice()
+        result = await invoice.create_invoice()
         #{'status': 'Succes', 'message': 'Bilag oprettet', 'Bilag': 'Omposteringsbilaget er kontrolleret og OK'}
         self.assertTrue(result['status'] == "Succes")
         self.assertTrue("bilag oprettet" in result['message'].lower())
         self.assertTrue("bilaget er kontrolleret og ok" in result['bilag'].lower())
 
         invoice._headless=True
-        result = invoice.create_invoice()
+        result = await invoice.create_invoice()
         #{'status': 'Succes', 'message': 'Bilag oprettet', 'Bilag': 'Omposteringsbilaget er kontrolleret og OK'}
         self.assertTrue(result['status'] == "Succes")
         self.assertTrue("bilag oprettet" in result['message'].lower())
         self.assertTrue("bilaget er kontrolleret og ok" in result['bilag'].lower())
     # *************************************************************************************************************
-    def test_invoice_creation_all_fields_except_bilag(self):
+    async def test_invoice_creation_all_fields_except_bilag(self):
         d = date.today()
         opus = OpusConfig(url=self.opus_url, municipality_code=self.opus_municipality_code, username=self.opus_username, password=self.opus_userpassword)
         invoice_data = self.invoice_data.copy()
         invoice_data["BilagsFilePath"] = ""
         invoice = nkInvoice(opus_data=opus, invoice_data=invoice_data)
         invoice._headless=False
-        result = invoice.create_invoice()
+        result = await invoice.create_invoice()
         #{'status': 'Succes', 'message': 'Bilag oprettet', 'Bilag': 'Omposteringsbilaget er kontrolleret og OK'}
         self.assertTrue(result['status'] == "Succes")
         self.assertTrue("bilag oprettet" in result['message'].lower())
         self.assertTrue("bilaget er kontrolleret og ok" in result['bilag'].lower())
 
         invoice._headless=True
-        result = invoice.create_invoice()
+        result = await invoice.create_invoice()
         #{'status': 'Succes', 'message': 'Bilag oprettet', 'Bilag': 'Omposteringsbilaget er kontrolleret og OK'}
         self.assertTrue(result['status'] == "Succes")
         self.assertTrue("bilag oprettet" in result['message'].lower())
         self.assertTrue("bilaget er kontrolleret og ok" in result['bilag'].lower())
     # *************************************************************************************************************
-    def test_invoice_creation_all_fields_except_Reference_Comments(self):
+    async def test_invoice_creation_all_fields_except_Reference_Comments(self):
         d = date.today()
         opus = OpusConfig(url=self.opus_url, municipality_code=self.opus_municipality_code, username=self.opus_username, password=self.opus_userpassword)
         invoice_data = self.invoice_data.copy()
@@ -285,14 +286,14 @@ class TestInvoice(unittest.TestCase):
         invoice_data["Kommentar"] = ""
         invoice = nkInvoice(opus_data=opus, invoice_data=invoice_data)
         invoice._headless=False
-        result = invoice.create_invoice()
+        result = await invoice.create_invoice()
         #{'status': 'Succes', 'message': 'Bilag oprettet', 'Bilag': 'Omposteringsbilaget er kontrolleret og OK'}
         self.assertTrue(result['status'] == "Succes")
         self.assertTrue("bilag oprettet" in result['message'].lower())
         self.assertTrue("bilaget er kontrolleret og ok" in result['bilag'].lower())
 
         invoice._headless=True
-        result = invoice.create_invoice()
+        result = await invoice.create_invoice()
         #{'status': 'Succes', 'message': 'Bilag oprettet', 'Bilag': 'Omposteringsbilaget er kontrolleret og OK'}
         self.assertTrue(result['status'] == "Succes")
         self.assertTrue("bilag oprettet" in result['message'].lower())

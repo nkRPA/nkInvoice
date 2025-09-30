@@ -85,9 +85,9 @@ async def main():
     logging.basicConfig(
         level=logging.DEBUG,
         format="%(asctime)s - %(levelname)s - %(message)s",
-        datefmt="%Y-%m-%d %H:%M:%S",
-        filename=log_filename,
-        filemode="w"
+        datefmt="%Y-%m-%d %H:%M:%S"
+        #filename=log_filename,
+        #filemode="w"
     )
     logger = logging.getLogger(__name__)
     
@@ -102,16 +102,16 @@ async def main():
     }
     # Data for creating the invoice
     invoice_data = {
-            "Debet_PSP":"XG-0000000204-00001",
-            "Kredit_PSP":"XG-0000002473-00029",
+            "Debet_PSP":"",#"XG-0000000204-00001",
+            "Kredit_PSP":"",#"XG-0000002473-00029",
             "Tekst":"Test af tekst",
-            "Reference":"test af reference",
+            "Reference":"test af ref",
             "Bogføringsdato":date.today().strftime("%d.%m.%Y"), # -> "12.09.2025"
             "Kommentar":"test af comment",
-            "Debet_Artskonto":"40000000",
-            "Kredit_Artskonto":"40000000",
-            "Debet_PosteringsTekst":"Test af posterings tekst",
-            "Kredit_PosteringsTekst":"Test af posterings tekst",
+            "Debet_Artskonto":"95910388",#"40000000",
+            "Kredit_Artskonto":"95910388",#"40000000",
+            "Debet_PosteringsTekst":"Test postering",
+            "Kredit_PosteringsTekst":"Test postering",
             "Kost":1.0,
             "BilagsFilePath":bilags_file_path,
             "csv_filename":csv_filename
