@@ -13,6 +13,9 @@ from enum import Enum, auto
 import time
 import asyncio
 from playwright.async_api import async_playwright
+
+import locale
+
 #### ********************************************************************************************************************
 
 OPUS_CSV_HEADERS = ["Artskonto", "Omkostningssted", "PSP-element", "Profitcenter", "Ordre", "Debet/kredit", "Beløb", "Næste agent", "Tekst", "Betalingsart", "Påligningsår", "Betalingsmodtagernr.", "Betalingsmodtagernr.kode", "Ydelsesmodtagernr.", "Ydelsesmodtagernr.kode", "Ydelsesperiode fra", "Ydelsesperiode til", "Oplysningspligtnr.", "Oplysningspligtmodtagernr.kode", "Oplysningspligtkode", "Netværk", "Operation", "Mængde", "Mængdeenhed", "Referencenøgle"] 
@@ -211,6 +214,8 @@ class nkInvoice(BaseModel):
         status_text = await self._check_invoice()
         self._log_verbose(message=f"Status text after checking invoice: {status_text}")
         if status_text == 'Omposteringsbilaget er kontrolleret og OK':
+            #await self.create_invoice()
+            
             Invoice = "Succes"
             text = "Bilag oprettet"
         else:
@@ -279,7 +284,9 @@ class nkInvoice(BaseModel):
         self._log_verbose(message=f"Kost: {self.invoice_data.Kost}")
         self._log_verbose(message=f"Debet posterings tekst: {self.invoice_data.Debet_PosteringsTekst}")
         self._log_verbose(message=f"Kredit posterings tekst: {self.invoice_data.Kredit_PosteringsTekst}")
+        locale.setlocale(locale.LC_ALL, "da_DK.UTF-8") 
         
+
         csv_data = [
             [
                 self.invoice_data.Debet_Artskonto,
@@ -288,7 +295,7 @@ class nkInvoice(BaseModel):
                 "",
                 "",
                 "Debet",
-                self.invoice_data.Kost,
+                locale.format_string("%.2f", self.invoice_data.Kost),#self.invoice_data.Kost,
                 "",
                 self.invoice_data.Debet_PosteringsTekst if self.invoice_data.Debet_PosteringsTekst else "",
                 "","","","","","","","","","","","","","",""
@@ -300,7 +307,7 @@ class nkInvoice(BaseModel):
                 "",
                 "",
                 "Kredit",
-                self.invoice_data.Kost,
+                locale.format_string("%.2f", self.invoice_data.Kost),#self.invoice_data.Kost,
                 "",
                 self.invoice_data.Kredit_PosteringsTekst if self.invoice_data.Kredit_PosteringsTekst else "",
                 "","","","","","","","","","","","","","",""
@@ -416,7 +423,6 @@ class nkInvoice(BaseModel):
         ok_button = iframe.locator("div.lsButton:has(span:has-text('OK'))")
         await ok_button.press("Enter")                        
         self._log_verbose(message="Attachment process completed")
-        
     ### ***********************************************************
     ### ***********************************************************
     @_exception_helper
