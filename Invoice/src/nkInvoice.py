@@ -313,7 +313,8 @@ class nkInvoice(BaseModel):
                 "",
                 "",
                 "Debet",
-                locale.format_string("%.2f", self.invoice_data.Kost),#self.invoice_data.Kost,
+                f"{self.invoice_data.Kost:.1f}".replace(".", ","),
+#                locale.format_string("%.2f", self.invoice_data.Kost),#self.invoice_data.Kost,
                 "",
                 self.invoice_data.Debet_PosteringsTekst if self.invoice_data.Debet_PosteringsTekst else "",
                 "","","","","","","","","","","","","","",""
@@ -325,7 +326,8 @@ class nkInvoice(BaseModel):
                 "",
                 "",
                 "Kredit",
-                locale.format_string("%.2f", self.invoice_data.Kost),#self.invoice_data.Kost,
+                f"{self.invoice_data.Kost:.1f}".replace(".", ","),
+##               locale.format_string("%.2f", self.invoice_data.Kost),#self.invoice_data.Kost,
                 "",
                 self.invoice_data.Kredit_PosteringsTekst if self.invoice_data.Kredit_PosteringsTekst else "",
                 "","","","","","","","","","","","","","",""
