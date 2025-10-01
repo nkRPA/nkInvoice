@@ -132,14 +132,14 @@ class nkInvoice(BaseModel):
         Args:
             max_retries (int): Number of retries for transient errors. Default is 3.
             try_number (int): Current attempt number. Default is 1.
-            
         Returns:
             dict: Result of the invoice creation process.
         Raises:
             ValueError: If there are validation errors in the input data.
             """  
         self.create_invoice_allowed=create_invoice_allowed
-
+        await self._create_csv()
+        
         for run in range(try_number, max_retries):
             try:
                 self._log(message="Start creation of invoice -> _create_invoice()", level=LogLevel.INFO)
@@ -163,8 +163,6 @@ class nkInvoice(BaseModel):
             runs the full process of creating an invoice in Opus using the provided invoice data.
             retries try_number <= max_retries times in case of transient errors.
         Args:
-            max_retries (int): Number of retries for transient errors. Default is 3.
-            try_number (int): Current attempt number. Default is 1.
             
         Returns:
             dict: Result of the invoice creation process.
@@ -173,7 +171,7 @@ class nkInvoice(BaseModel):
             """  
         self._log(message="** >> Start creation of invoice", level=LogLevel.INFO)
         async with async_playwright() as playwright:
-            await self._create_csv()
+            # await self._create_csv()
             await self._start_opus_rollebaseret(playwright)
             await self._fill_opus_page()
             self._log(message="End creation of invoice", level=LogLevel.INFO)
