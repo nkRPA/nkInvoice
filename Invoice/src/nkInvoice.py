@@ -138,34 +138,49 @@ class nkInvoice(BaseModel):
         Raises:
             ValueError: If there are validation errors in the input data.
             """  
-        try:
-            self.create_invoice_allowed=create_invoice_allowed
-            self._log_verbose(message="****************************************************************************")
-            self._log(message="Start creation of invoice", level=LogLevel.INFO)
-            async with async_playwright() as playwright:
-                await self._create_csv()
-                await self._start_opus_rollebaseret(playwright)
-                await self._fill_opus_page()
-                self._log(message="End creation of invoice", level=LogLevel.INFO)
-                self._context.close()
-                self._browser.close()
-                return self._result
-        except Exception as e:
+        self.create_invoice_allowed=create_invoice_allowed
+
+        for run in range(try_number, max_retries):
             try:
-                self._context.close()
-                self._browser.close()
-            except:
-                pass
-            if try_number <= max_retries:
-                self._log(message=f"Retrying invoice creation, attempt {try_number + 1} of {max_retries}", level=LogLevel.WARNING)
-                return self.create_invoice(create_invoice_allowed=create_invoice_allowed, max_retries=max_retries, try_number = try_number + 1)
-            self._log(message=f"Failed to create invoice after {max_retries} attempts", level=LogLevel.ERROR)
-            
-            func_name = __name__
-            raise RuntimeError(f"Error in function '{func_name}': {e}") from e
+                self._log(message="Start creation of invoice -> _create_invoice()", level=LogLevel.INFO)
+                return await self._create_invoice()
+            except Exception as e:
+                # closing browser
+                try:
+                    self._context.close()
+                    self._browser.close()
+                except:
+                    pass
+                
+                self._log(message=f"Try invoice creation, attempt {try_number} of {max_retries} - FAILED", level=LogLevel.WARNING)
+                
+        return await self._create_invoice()
         
     ### ------------------------------------------------------------------------------------------------------
     ### PRIVATE METHODS
+    async def _create_invoice(self) -> dict:
+        """Create an invoice in the Opus system using Playwright.
+            runs the full process of creating an invoice in Opus using the provided invoice data.
+            retries try_number <= max_retries times in case of transient errors.
+        Args:
+            max_retries (int): Number of retries for transient errors. Default is 3.
+            try_number (int): Current attempt number. Default is 1.
+            
+        Returns:
+            dict: Result of the invoice creation process.
+        Raises:
+            ValueError: If there are validation errors in the input data.
+            """  
+        self._log(message="** >> Start creation of invoice", level=LogLevel.INFO)
+        async with async_playwright() as playwright:
+            await self._create_csv()
+            await self._start_opus_rollebaseret(playwright)
+            await self._fill_opus_page()
+            self._log(message="End creation of invoice", level=LogLevel.INFO)
+            self._context.close()
+            self._browser.close()
+            return self._result
+        
     def verbose_log_frames(self):
         if self._verbose:
             frames = self._page.frames

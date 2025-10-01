@@ -71,8 +71,8 @@ async def main():
     subject = "Test email from nkInvoice"
     body = "This is a test email sent from the nkInvoice script."
     
-    bilags_file_path = "file_path.txt"
-    csv_filename = "opus.csv"
+    bilags_file_path = "./file_path.txt"
+    csv_filename = "./opus.csv"
     log_filename="nkInvoice.log"
     # send_internal_email(receiver_email, subject, body, smtp_server='smtp.naestved.dk', smtp_port=2552, sender_email="InvoiceTester@naestved.dk")
 
