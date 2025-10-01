@@ -116,6 +116,7 @@ class nkInvoice(BaseModel):
     model_config = ConfigDict(extra='forbid', strict=True)
     invoice_data: InvoiceData
     opus_data: OpusConfig
+    create_invoice_allowed:bool = False
     _headless: bool = False
     _verbose: bool = False    
     _logger: logging.Logger = None
@@ -123,7 +124,7 @@ class nkInvoice(BaseModel):
     ### Methods
     ### ------------------------------------------------------------------------------------------------------
     ### PUBLIC METHODS
-    async def create_invoice(self, max_retries: int = 3, try_number: int = 1) -> dict:
+    async def create_invoice(self, create_invoice_allowed:bool = False, max_retries: int = 3, try_number: int = 1) -> dict:
         
         """Create an invoice in the Opus system using Playwright.
             runs the full process of creating an invoice in Opus using the provided invoice data.
@@ -138,6 +139,7 @@ class nkInvoice(BaseModel):
             ValueError: If there are validation errors in the input data.
             """  
         try:
+            self.create_invoice_allowed=create_invoice_allowed
             self._log_verbose(message="****************************************************************************")
             self._log(message="Start creation of invoice", level=LogLevel.INFO)
             async with async_playwright() as playwright:
@@ -145,6 +147,8 @@ class nkInvoice(BaseModel):
                 await self._start_opus_rollebaseret(playwright)
                 await self._fill_opus_page()
                 self._log(message="End creation of invoice", level=LogLevel.INFO)
+                self._context.close()
+                self._browser.close()
                 return self._result
         except Exception as e:
             try:
@@ -154,7 +158,7 @@ class nkInvoice(BaseModel):
                 pass
             if try_number <= max_retries:
                 self._log(message=f"Retrying invoice creation, attempt {try_number + 1} of {max_retries}", level=LogLevel.WARNING)
-                return self.create_invoice(max_retries=max_retries, try_number = try_number + 1)
+                return self.create_invoice(create_invoice_allowed=create_invoice_allowed, max_retries=max_retries, try_number = try_number + 1)
             self._log(message=f"Failed to create invoice after {max_retries} attempts", level=LogLevel.ERROR)
             
             func_name = __name__
@@ -214,7 +218,8 @@ class nkInvoice(BaseModel):
         status_text = await self._check_invoice()
         self._log_verbose(message=f"Status text after checking invoice: {status_text}")
         if status_text == 'Omposteringsbilaget er kontrolleret og OK':
-            #await self.create_invoice()
+            if self.create_invoice_allowed:
+                status_text = await self.create_actual_invoice()
             
             Invoice = "Succes"
             text = "Bilag oprettet"
@@ -457,7 +462,7 @@ class nkInvoice(BaseModel):
     ### ***********************************************************
     ### ***********************************************************
     @_exception_helper
-    async def _check_invoice(self)->bool:
+    async def _check_invoice(self)->str:
         self._log(message="Checking invoice", level=LogLevel.INFO)
         frame = self._page.frame_locator("#contentAreaFrame").frame_locator("#isolatedWorkArea")
         control_button = frame.locator('div[title*="Kontroller bilag"]')
@@ -469,5 +474,30 @@ class nkInvoice(BaseModel):
         return  status_text
     ### ***********************************************************
     ### ***********************************************************
+    @_exception_helper
+    async def create_actual_invoice(self):
+        if self.create_invoice_allowed:
+            self._log(message="Creating invoice", level=LogLevel.INFO)
+            frame = self._page.frame_locator("#contentAreaFrame").frame_locator("#isolatedWorkArea")
+            control_button = frame.locator('div[title*="Opret ompostering"]')
+            self._log_verbose(message="Clicking create button")
+            await control_button.click()
+            self._log_verbose(message="Waiting for creation to complete")
+            await self._page.wait_for_timeout(2000)
+            status_text = "no_invoice"
+            
+            try:
+                status_text = await self._get_status_text(frame)
+            except Exception:
+                await self._page.wait_for_timeout(2000)
+                status_text = None
+                
+            if status_text is None:
+                status_text = await self._get_status_text(frame)
 
+            return status_text
+        else:
+            return "Not allowed!"
+        
+        
 
