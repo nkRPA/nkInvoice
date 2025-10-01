@@ -302,8 +302,6 @@ class nkInvoice(BaseModel):
         self._log_verbose(message=f"Kost: {self.invoice_data.Kost}")
         self._log_verbose(message=f"Debet posterings tekst: {self.invoice_data.Debet_PosteringsTekst}")
         self._log_verbose(message=f"Kredit posterings tekst: {self.invoice_data.Kredit_PosteringsTekst}")
-        locale.setlocale(locale.LC_ALL, "da_DK.UTF-8") 
-        
 
         csv_data = [
             [
