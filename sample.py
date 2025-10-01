@@ -101,6 +101,7 @@ async def main():
         "password":opus_userpassword
     }
     # Data for creating the invoice
+    cost:float = 1.0
     invoice_data = {
             "Debet_PSP":"",#"XG-0000000204-00001",
             "Kredit_PSP":"",#"XG-0000002473-00029",
@@ -112,7 +113,7 @@ async def main():
             "Kredit_Artskonto":"95910388",#"40000000",
             "Debet_PosteringsTekst":"Test postering",
             "Kredit_PosteringsTekst":"Test postering",
-            "Kost":1.0,
+            "Kost":cost,
             "BilagsFilePath":bilags_file_path,
             "csv_filename":csv_filename
         }
@@ -130,7 +131,7 @@ async def main():
             ## Set logger if needed
             invoice._logger=logging.getLogger(__name__)
             ## Create the invoice
-            result = await invoice.create_invoice(max_retries=3, try_number=1)
+            result = await invoice.create_invoice(max_retries=3, try_number=1) 
             # result is a dictionary with the result of the operation
             # eks. {"status": "success", "message": "Invoice created successfully", "bilag": "123456"}
             logger.info(f"Result: {result}")

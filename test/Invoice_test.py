@@ -9,6 +9,8 @@ import asyncio
 class TestInvoice(unittest.TestCase):
     def setUp(self):
         # Setup code: create resources needed for tests
+        cost:float = 1.0
+        
         self.invoice_data = {
             "Debet_PSP":"XG-0000000204-00001",
             "Kredit_PSP":"XG-0000002473-00029",
@@ -20,7 +22,7 @@ class TestInvoice(unittest.TestCase):
             "Kredit_Artskonto":"40000000",
             "Debet_PosteringsTekst":"Test af posterings tekst",
             "Kredit_PosteringsTekst":"Test af posterings tekst",
-            "Kost":1.0,
+            "Kost":self.cost,
             "BilagsFilePath":"/Users/lakas/tmp/file_path.txt",
             "csv_filename":"/Users/lakas/tmp/opus.csv"
         }
