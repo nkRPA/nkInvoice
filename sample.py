@@ -71,8 +71,9 @@ async def main():
     subject = "Test email from nkInvoice"
     body = "This is a test email sent from the nkInvoice script."
     
-    bilags_file_path = "./file_path.txt"
-    csv_filename = "./opus.csv"
+    
+    bilags_file_path = "/Users/lakas/tmp/file_path.txt"
+    csv_filename = "/Users/lakas/tmp/opus.csv"
     log_filename="nkInvoice.log"
     # send_internal_email(receiver_email, subject, body, smtp_server='smtp.naestved.dk', smtp_port=2552, sender_email="InvoiceTester@naestved.dk")
 
@@ -101,19 +102,37 @@ async def main():
         "password":opus_userpassword
     }
     # Data for creating the invoice
-    cost:float = 1.0
+    cost1:float = 1.0
+    cost2:float = 2.0
+
+   
+    cost_data_list = [
+        {
+            "Debet_Artskonto":"40000000",
+            "Kredit_Artskonto":"40000000",
+            "Debet_PSP_element":"XG-0000000204-00001",
+            "Kredit_PSP_element":"XG-0000002473-00029",
+            "Kost":cost1,
+            "Debet_PosteringsTekst":"Test postering 2",
+            "Kredit_PosteringsTekst":"Test postering 2",
+        }
+        # {
+        #     "Debet_Artskonto":"95910388",
+        #     "Kredit_Artskonto":"95910388",
+        #     "Debet_PSP-element":"",#"XG-0000000204-00001",
+        #     "Kredit_PSP-element":"",#"XG-0000000204-00001",
+        #     "Kost":cost2,
+        #     "Debet_PosteringsTekst":"Test postering 2",
+        #     "Kredit_PosteringsTekst":"Test postering 2",
+        # },
+    ]
+
     invoice_data = {
-            "Debet_PSP":"",#"XG-0000000204-00001",
-            "Kredit_PSP":"",#"XG-0000002473-00029",
             "Tekst":"Test af tekst",
+            "opus_cost_data":cost_data_list,
             "Reference":"test af ref",
             "Bogføringsdato":date.today().strftime("%d.%m.%Y"), # -> "12.09.2025"
             "Kommentar":"test af comment",
-            "Debet_Artskonto":"95910388",#"40000000",
-            "Kredit_Artskonto":"95910388",#"40000000",
-            "Debet_PosteringsTekst":"Test postering",
-            "Kredit_PosteringsTekst":"Test postering",
-            "Kost":cost,
             "BilagsFilePath":bilags_file_path,
             "csv_filename":csv_filename
         }

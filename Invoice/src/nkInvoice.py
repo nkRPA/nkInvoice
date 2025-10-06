@@ -54,22 +54,37 @@ class OpusConfig(BaseModel):
         return f"{base_url}/?kommune={self.municipality_code}"
 #### ********************************************************************************************************************
 #### ********************************************************************************************************************
+class OpusCostData(BaseModel):
+    """ Class for handling Opus configuration. """
+    # Attributes
+    Debet_Artskonto: int = Field(gt=9999999, lt=100000000)
+    Kredit_Artskonto: int = Field(gt=9999999, lt=100000000)
+    Debet_PSP_element:str|None = "" 
+    Kredit_PSP_element:str|None = ""
+    Kost: confloat(gt=0.0)
+    Debet_PosteringsTekst:str
+    Kredit_PosteringsTekst:str
+
+    @model_validator(mode="after")
+    def validate_psp_pair(self):
+        debet = self.Debet_PSP_element.strip()
+        kredit = self.Kredit_PSP_element.strip()
+
+        if (len(debet) == 0 and len(kredit) == 0) or (len(debet) > 0 and len(kredit) > 0):
+            return self
+
+        raise ValueError("Debet_PSP_element and Kredit_PSP_element must either both be empty or both filled")
+#### ********************************************************************************************************************
+#### ********************************************************************************************************************
 ####
 class InvoiceData(BaseModel):
-    Debet_PSP: str|None = ""
-    Kredit_PSP: str|None = ""
     Tekst: str
     Reference: str|None = ""
     Bogføringsdato: str|None = ""
     Kommentar: str|None = ""
-    Debet_Artskonto: int = Field(gt=9999999, lt=100000000)
-    Kredit_Artskonto: int = Field(gt=9999999, lt=100000000)
-    Debet_PosteringsTekst: str|None = ""
-    Kredit_PosteringsTekst: str|None = ""
-    Kost: confloat(gt=0.0)
     BilagsFilePath: Union[FilePath, str] = ""
     csv_filename: Path
-
+    opus_cost_data: list[OpusCostData]
     # --- Validators ---
 
     @field_validator("Tekst")
@@ -93,15 +108,15 @@ class InvoiceData(BaseModel):
         return FilePath(v) 
     
     # --- Cross-field validator ---
-    @model_validator(mode="after")
-    def validate_psp_pair(self):
-        debet = self.Debet_PSP.strip()
-        kredit = self.Kredit_PSP.strip()
+    # @model_validator(mode="after")
+    # def validate_psp_pair(self):
+    #     debet = self.Debet_PSP.strip()
+    #     kredit = self.Kredit_PSP.strip()
 
-        if (len(debet) == 0 and len(kredit) == 0) or (len(debet) > 0 and len(kredit) > 0):
-            return self
+    #     if (len(debet) == 0 and len(kredit) == 0) or (len(debet) > 0 and len(kredit) > 0):
+    #         return self
 
-        raise ValueError("Debet_PSP and Kredit_PSP must either both be empty or both filled")
+    #     raise ValueError("Debet_PSP and Kredit_PSP must either both be empty or both filled")
 #### ********************************************************************************************************************
 #### ********************************************************************************************************************
 class nkInvoice(BaseModel):
@@ -116,6 +131,7 @@ class nkInvoice(BaseModel):
     model_config = ConfigDict(extra='forbid', strict=True)
     invoice_data: InvoiceData
     opus_data: OpusConfig
+    
     create_invoice_allowed:bool = False
     _headless: bool = False
     _verbose: bool = False    
@@ -233,9 +249,11 @@ class nkInvoice(BaseModel):
         if status_text == 'Omposteringsbilaget er kontrolleret og OK':
             if self.create_invoice_allowed:
                 status_text = await self.create_actual_invoice()
-            
+                text = "Bilag oprettet"
+            else:
+                text = "Bilag ikke oprettet"
             Invoice = "Succes"
-            text = "Bilag oprettet"
+            
         else:
             Invoice = "Fejlet"
             text = "Bilag ikke oprettet"
@@ -294,43 +312,44 @@ class nkInvoice(BaseModel):
     async def _create_csv(self):
         """Create a CSV file for Opus import based on invoice data."""
         self._log(message="Creating CSV file for Opus import", level=LogLevel.INFO)
-        ### Verbose logging of data from invoice_data
-        self._log_verbose(message=f"Debet arts konto: {self.invoice_data.Debet_Artskonto}")
-        self._log_verbose(message=f"Kredit arts konto: {self.invoice_data.Kredit_Artskonto}")
-        self._log_verbose(message=f"Debet PSP: {self.invoice_data.Debet_PSP}")
-        self._log_verbose(message=f"Kredit PSP: {self.invoice_data.Kredit_PSP}")
-        self._log_verbose(message=f"Kost: {self.invoice_data.Kost}")
-        self._log_verbose(message=f"Debet posterings tekst: {self.invoice_data.Debet_PosteringsTekst}")
-        self._log_verbose(message=f"Kredit posterings tekst: {self.invoice_data.Kredit_PosteringsTekst}")
+        csv_data = []
+        
+        for cost_data in self.invoice_data.opus_cost_data:
+            self._log_verbose(message=f"Debet arts konto: {cost_data.Debet_Artskonto}")
+            self._log_verbose(message=f"Kredit arts konto: {cost_data.Kredit_Artskonto}")
+            self._log_verbose(message=f"Debet PSP: {cost_data.Debet_PSP_element}")
+            self._log_verbose(message=f"Kredit PSP: {cost_data.Kredit_PSP_element}")
+            self._log_verbose(message=f"Kost: {cost_data.Kost}")
+            self._log_verbose(message=f"Debet posterings tekst: {cost_data.Debet_PosteringsTekst}")
+            self._log_verbose(message=f"Kredit posterings tekst: {cost_data.Kredit_PosteringsTekst}")
+            csv_data.append(
+                [
+                    cost_data.Debet_Artskonto,
+                    "",
+                    cost_data.Debet_PSP_element if cost_data.Debet_PSP_element else "",
+                    "",
+                    "",
+                    "Debet",
+                    f"{cost_data.Kost:.1f}".replace(".", ","),
+                        "",
+                    cost_data.Debet_PosteringsTekst if cost_data.Debet_PosteringsTekst else "",
+                    "","","","","","","","","","","","","","",""
+                ])
+            csv_data.append(
+                [
+                    cost_data.Kredit_Artskonto,
+                    "",
+                    cost_data.Kredit_PSP_element if cost_data.Kredit_PSP_element else "",
+                    "",
+                    "",
+                    "Kredit",
+                    f"{cost_data.Kost:.1f}".replace(".", ","),
+                        "",
+                    cost_data.Kredit_PosteringsTekst if cost_data.Kredit_PosteringsTekst else "",
+                    "","","","","","","","","","","","","","",""
+                ]            
+            )
 
-        csv_data = [
-            [
-                self.invoice_data.Debet_Artskonto,
-                "",
-                self.invoice_data.Debet_PSP if self.invoice_data.Debet_PSP else "",
-                "",
-                "",
-                "Debet",
-                f"{self.invoice_data.Kost:.1f}".replace(".", ","),
-#                locale.format_string("%.2f", self.invoice_data.Kost),#self.invoice_data.Kost,
-                "",
-                self.invoice_data.Debet_PosteringsTekst if self.invoice_data.Debet_PosteringsTekst else "",
-                "","","","","","","","","","","","","","",""
-            ],
-            [
-                self.invoice_data.Kredit_Artskonto,
-                "",
-                self.invoice_data.Kredit_PSP if self.invoice_data.Kredit_PSP else "",
-                "",
-                "",
-                "Kredit",
-                f"{self.invoice_data.Kost:.1f}".replace(".", ","),
-##               locale.format_string("%.2f", self.invoice_data.Kost),#self.invoice_data.Kost,
-                "",
-                self.invoice_data.Kredit_PosteringsTekst if self.invoice_data.Kredit_PosteringsTekst else "",
-                "","","","","","","","","","","","","","",""
-            ]
-        ]
         self._log_verbose(message=f"CSV data to write: {csv_data}")
         self._create_opus_csv(data=csv_data)
     ### ***********************************************************
