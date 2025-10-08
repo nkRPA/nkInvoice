@@ -12,59 +12,7 @@ import asyncio
 load_dotenv()
 
 
-def send_internal_email(
-    receiver_email,
-    subject,
-    body,
-    smtp_server='smtp.naestved.dk',
-    smtp_port=25,
-    sender_email="serviceChecker@naestved.dk",
-    logger=None,
-    attachments=None
-):
-    """
-    Sends an email using the specified SMTP server.
-    
-    :param receiver_email: The email address of the receiver.
-    :param subject: The subject of the email.
-    :param body: The body content of the email.
-    :param smtp_server: The SMTP server address.
-    :param smtp_port: The port number for the SMTP server.
-    :param sender_email: The email address of the sender.
-    :param logger: Optional logger for error handling.
-    :param attachments: List of file paths to attach.
-    """
-    # Create the email message
-    msg = MIMEMultipart()
-    msg['From'] = sender_email
-    msg['To'] = receiver_email
-    msg['Subject'] = subject
-    msg.attach(MIMEText(body, 'plain'))
 
-    # Add attachments if provided
-    if attachments:
-        for file_path in attachments:
-            try:
-                with open(file_path, "rb") as f:
-                    part = MIMEApplication(f.read(), Name=os.path.basename(file_path))
-                part['Content-Disposition'] = f'attachment; filename="{os.path.basename(file_path)}"'
-                msg.attach(part)
-            except Exception as e:
-                if logger:
-                    logger.error(f"Could not attach file {file_path}: {e}")
-                else:
-                    print(f"Could not attach file {file_path}: {e}")
-
-    # Send the email
-    try:
-        with smtplib.SMTP(smtp_server, smtp_port) as server:
-            server.send_message(msg)
-        
-    except Exception as e:
-        if logger:
-            logger.error(f"Failed to send email to {receiver_email}. Error: {e}")
-        else:
-            print(f"Failed to send email: {e}")
 
 async def main():
     receiver_email = "lakas@naestved.dk"
@@ -107,25 +55,25 @@ async def main():
 
    
     cost_data_list = [
-        {
-            "Debet_Artskonto":"40000000",
-            "Kredit_Artskonto":"40000000",
-            "Debet_PSP_element":"XG-0000000204-00001",
-            "Kredit_PSP_element":"XG-0000002473-00029",
-            "Kost":cost1,
-            "Debet_PosteringsTekst":"Test postering 2",
-            "Kredit_PosteringsTekst":"Test postering 2",
-        }
-        # {
-        #     "Debet_Artskonto":"95910388",
-        #     "Kredit_Artskonto":"95910388",
-        #     "Debet_PSP-element":"",#"XG-0000000204-00001",
-        #     "Kredit_PSP-element":"",#"XG-0000000204-00001",
-        #     "Kost":cost2,
-        #     "Debet_PosteringsTekst":"Test postering 2",
-        #     "Kredit_PosteringsTekst":"Test postering 2",
-        # },
-    ]
+            {
+                "Debet_Artskonto":"40000000",
+                "Kredit_Artskonto":"40000000",
+                "Debet_PSP_element":"XG-0000000204-00001",
+                "Kredit_PSP_element":"XG-0000002473-00029",
+                "Kost":cost1,
+                "Debet_PosteringsTekst":"Test postering 1",
+                "Kredit_PosteringsTekst":"Test postering 1"
+            },
+            {
+                "Debet_Artskonto":"40000000",
+                "Kredit_Artskonto":"40000000",
+                "Debet_PSP_element":"XG-0000000204-00001",
+                "Kredit_PSP_element":"XG-0000002473-00029",
+                "Kost":cost2
+                "Debet_PosteringsTekst":"Test postering 2",
+                "Kredit_PosteringsTekst":"Test postering 2"
+            }
+        ]
 
     invoice_data = {
             "Tekst":"Test af tekst",
