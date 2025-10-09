@@ -1,5 +1,5 @@
 import logging
-from Invoice.src.nkInvoice import nkInvoice
+from Invoice.src.nkInvoice import nkInvoice, eOpusCostType
 import os
 from dotenv import load_dotenv
 from datetime import date
@@ -56,22 +56,18 @@ async def main():
    
     cost_data_list = [
             {
-                "Debet_Artskonto":"40000000",
-                "Kredit_Artskonto":"40000000",
-                "Debet_PSP_element":"XG-0000000204-00001",
-                "Kredit_PSP_element":"XG-0000002473-00029",
+                "Artskonto":"40000000",
+                "PSP_element":"XG-0000000204-00001",
                 "Kost":cost1,
-                "Debet_PosteringsTekst":"Test postering 1",
-                "Kredit_PosteringsTekst":"Test postering 1"
+                "PosteringsTekst":"Test postering 1",
+                "Type":eOpusCostType.DEBET
             },
             {
-                "Debet_Artskonto":"40000000",
-                "Kredit_Artskonto":"40000000",
-                "Debet_PSP_element":"XG-0000000204-00001",
-                "Kredit_PSP_element":"XG-0000002473-00029",
-                "Kost":cost2
-                "Debet_PosteringsTekst":"Test postering 2",
-                "Kredit_PosteringsTekst":"Test postering 2"
+                "Artskonto":"40000000",
+                "PSP_element":"XG-0000002473-00029",
+                "Kost":cost2,
+                "PosteringsTekst":"Test postering 1",
+                "Type":eOpusCostType.KREDIT
             }
         ]
 

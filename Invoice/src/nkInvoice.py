@@ -54,26 +54,19 @@ class OpusConfig(BaseModel):
         return f"{base_url}/?kommune={self.municipality_code}"
 #### ********************************************************************************************************************
 #### ********************************************************************************************************************
+
+class eOpusCostType(Enum):
+    DEBET = auto()
+    KREDIT = auto()
 class OpusCostData(BaseModel):
     """ Class for handling Opus configuration. """
     # Attributes
-    Debet_Artskonto: int = Field(gt=9999999, lt=100000000)
-    Kredit_Artskonto: int = Field(gt=9999999, lt=100000000)
-    Debet_PSP_element:str|None = "" 
-    Kredit_PSP_element:str|None = ""
+    Artskonto: int = Field(gt=9999999, lt=100000000)
+    PSP_element:str|None = ""
     Kost: confloat(gt=0.0)
-    Debet_PosteringsTekst:str
-    Kredit_PosteringsTekst:str
+    PosteringsTekst:str
+    Type: eOpusCostType
 
-    @model_validator(mode="after")
-    def validate_psp_pair(self):
-        debet = self.Debet_PSP_element.strip()
-        kredit = self.Kredit_PSP_element.strip()
-
-        if (len(debet) == 0 and len(kredit) == 0) or (len(debet) > 0 and len(kredit) > 0):
-            return self
-
-        raise ValueError("Debet_PSP_element and Kredit_PSP_element must either both be empty or both filled")
 #### ********************************************************************************************************************
 #### ********************************************************************************************************************
 ####
@@ -108,15 +101,29 @@ class InvoiceData(BaseModel):
         return FilePath(v) 
     
     # --- Cross-field validator ---
-    # @model_validator(mode="after")
-    # def validate_psp_pair(self):
-    #     debet = self.Debet_PSP.strip()
-    #     kredit = self.Kredit_PSP.strip()
+    @model_validator(mode="after")
+    def validate_psp_pair(self):
+        debet = 0
+        kredit = 0
+        debet_psp = ""
+        kredit_psp = ""
+        for cost_data in self.opus_cost_data:
+            if cost_data.Type == eOpusCostType.DEBET:
+                debet_psp = cost_data.PSP_element.strip()
+                debet += cost_data.Kost
+            else:
+                kredit_psp = cost_data.PSP_element.strip()
+                kredit += cost_data.Kost
 
-    #     if (len(debet) == 0 and len(kredit) == 0) or (len(debet) > 0 and len(kredit) > 0):
-    #         return self
+        if (debet == 0 or kredit == 0 or (debet != kredit)):
+            raise ValueError("Debet and Kredit Kost must be equal")    
+        
+        if (len(debet_psp) == 0 and len(kredit_psp) == 0) or (len(debet_psp) > 0 and len(kredit_psp) > 0):
+            return self
+        
+        raise ValueError("Debet and Kredit PSP must either both be empty or both filled")
 
-    #     raise ValueError("Debet_PSP and Kredit_PSP must either both be empty or both filled")
+        
 #### ********************************************************************************************************************
 #### ********************************************************************************************************************
 class nkInvoice(BaseModel):
@@ -315,40 +322,23 @@ class nkInvoice(BaseModel):
         csv_data = []
         
         for cost_data in self.invoice_data.opus_cost_data:
-            self._log_verbose(message=f"Debet arts konto: {cost_data.Debet_Artskonto}")
-            self._log_verbose(message=f"Kredit arts konto: {cost_data.Kredit_Artskonto}")
-            self._log_verbose(message=f"Debet PSP: {cost_data.Debet_PSP_element}")
-            self._log_verbose(message=f"Kredit PSP: {cost_data.Kredit_PSP_element}")
+            self._log_verbose(message=f"arts konto: {cost_data.Artskonto}")
+            self._log_verbose(message=f"PSP: {cost_data.PSP_element}")
             self._log_verbose(message=f"Kost: {cost_data.Kost}")
-            self._log_verbose(message=f"Debet posterings tekst: {cost_data.Debet_PosteringsTekst}")
-            self._log_verbose(message=f"Kredit posterings tekst: {cost_data.Kredit_PosteringsTekst}")
+            self._log_verbose(message=f"posterings tekst: {cost_data.PosteringsTekst}")
             csv_data.append(
                 [
-                    cost_data.Debet_Artskonto,
+                    cost_data.Artskonto,
                     "",
-                    cost_data.Debet_PSP_element if cost_data.Debet_PSP_element else "",
+                    cost_data.PSP_element if cost_data.PSP_element else "",
                     "",
                     "",
-                    "Debet",
+                    "Debet" if cost_data.Type == eOpusCostType.DEBET else "Kredit",
                     f"{cost_data.Kost:.1f}".replace(".", ","),
                         "",
-                    cost_data.Debet_PosteringsTekst if cost_data.Debet_PosteringsTekst else "",
+                    cost_data.PosteringsTekst if cost_data.PosteringsTekst else "",
                     "","","","","","","","","","","","","","",""
                 ])
-            csv_data.append(
-                [
-                    cost_data.Kredit_Artskonto,
-                    "",
-                    cost_data.Kredit_PSP_element if cost_data.Kredit_PSP_element else "",
-                    "",
-                    "",
-                    "Kredit",
-                    f"{cost_data.Kost:.1f}".replace(".", ","),
-                        "",
-                    cost_data.Kredit_PosteringsTekst if cost_data.Kredit_PosteringsTekst else "",
-                    "","","","","","","","","","","","","","",""
-                ]            
-            )
 
         self._log_verbose(message=f"CSV data to write: {csv_data}")
         self._create_opus_csv(data=csv_data)
