@@ -309,6 +309,7 @@ class nkInvoice(BaseModel):
         
         error_message = await self.check_login_error()
         if error_message:
+            self._log(message=f"Login failed: {error_message}", level=LogLevel.ERROR)
             raise RuntimeError(f"Login failed: {error_message}")
         
         await self._page.locator("#externalCol").get_by_role("button").click()
