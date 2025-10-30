@@ -145,6 +145,7 @@ class nkInvoice(BaseModel):
                 self._log(message="Start creation of invoice -> _create_invoice()", level=LogLevel.INFO)
                 return await self._create_invoice()
             except Exception as e:
+                self._log(message=f"Try invoice creation exception: {e}", level=LogLevel.WARNING)
                 # closing browser
                 try:
                     self._context.close()
