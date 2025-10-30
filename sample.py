@@ -65,7 +65,7 @@ async def main():
             {
                 "Artskonto":"40000000",
                 "PSP_element":"XG-0000002473-00029",
-                "Kost":cost2,
+                "Kost":cost1,
                 "PosteringsTekst":"Test postering 1",
                 "Type":eOpusCostType.KREDIT
             }
