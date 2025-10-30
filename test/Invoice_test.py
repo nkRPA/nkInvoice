@@ -1,33 +1,53 @@
 import unittest
-from Invoice.src.nkInvoice import nkInvoice, OpusConfig
+from Invoice.src.nkInvoice import nkInvoice, OpusConfig, eOpusCostType
 from pydantic import ValidationError
 import os
 from dotenv import load_dotenv
 from datetime import date
 import asyncio
 
-class TestInvoice(unittest.TestCase):
+class TestInvoice(unittest.IsolatedAsyncioTestCase):
     def setUp(self):
         # Setup code: create resources needed for tests
-        cost:float = 1.0
-        
+        self.cost:float = 1.0
+        # self.cost_data_list = [
+        #     {
+        #         "Debet_Artskonto":"40000000",
+        #         "Kredit_Artskonto":"40000000",
+        #         "Debet_PSP_element":"XG-0000000204-00001",
+        #         "Kredit_PSP_element":"XG-0000002473-00029",
+        #         "Kost":self.cost,
+        #         "Debet_PosteringsTekst":"Test postering",
+        #         "Kredit_PosteringsTekst":"Test postering",
+        #     }
+        # ]
+
+        self.cost_data_list = [
+            {
+                "Artskonto":"40000000",
+                "PSP_element":"XG-0000000204-00001",
+                "Kost":self.cost,
+                "PosteringsTekst":"Test postering",
+                "Type":eOpusCostType.DEBET
+            },
+            {
+                "Artskonto":"40000000",
+                "PSP_element":"XG-0000002473-00029",
+                "Kost":self.cost,
+                "PosteringsTekst":"Test postering",
+                "Type":eOpusCostType.KREDIT
+            }
+        ]
         self.invoice_data = {
-            "Debet_PSP":"XG-0000000204-00001",
-            "Kredit_PSP":"XG-0000002473-00029",
             "Tekst":"Test af tekst",
             "Reference":"test af reference",
-            "Bogføringsdato":"12.09.2025",
+            "Bogføringsdato":date.today().strftime("%d.%m.%Y"),
             "Kommentar":"test af comment",
-            "Debet_Artskonto":"40000000",
-            "Kredit_Artskonto":"40000000",
-            "Debet_PosteringsTekst":"Test af posterings tekst",
-            "Kredit_PosteringsTekst":"Test af posterings tekst",
-            "Kost":self.cost,
+            "opus_cost_data":self.cost_data_list,
             "BilagsFilePath":"/Users/lakas/tmp/file_path.txt",
             "csv_filename":"/Users/lakas/tmp/opus.csv"
         }
-
-
+        
         load_dotenv()
         self.opus_username = os.getenv('OPUS_USER')
         self.opus_userpassword = os.getenv('OPUS_USER_PASSWORD')
@@ -38,19 +58,25 @@ class TestInvoice(unittest.TestCase):
         # Teardown code: clean up resources
         # Example: del self.invoice
         pass
-    def _testdata(self, key, value, new_data=None):
+    def _testdata(self, key, value, opus_type: eOpusCostType = None, new_data=None):
         if new_data:
             data = new_data
         else:
             data = self.invoice_data.copy()
-        data[key] = value
+        if opus_type:
+            for cost_data in data["opus_cost_data"]:
+                if cost_data["Type"] == opus_type:
+                    cost_data[key] = value
+                    break
+        else:
+            data[key] = value
         opus = OpusConfig(url=self.opus_url, municipality_code=self.opus_municipality_code, username="bruger", password="kode1234")
         invoice = nkInvoice(opus_data=opus, invoice_data=data)
     ########################################################################################################################
     ### Tests        
     ########################################################################################################################
     # *************************************************************************************************************
-    def test_invoice_creation_opus_data(self):
+    async def test_invoice_creation_opus_data(self):
 
         # test missing password
         try:
@@ -68,31 +94,43 @@ class TestInvoice(unittest.TestCase):
         except Exception as e:
             self.assertTrue("municipality_code" in str(e).lower() and "missing" in str(e).lower())  
     # *************************************************************************************************************
-    def test_invoice_Debet_PSP_data(self):
+    async def test_invoice_Kost_data(self):
         # Normal cases
         try:
-            self._testdata("Debet_PSP", "XG-0000000204-00001")
+            self._testdata("Kost", f"{self.cost}", eOpusCostType.DEBET)
         except Exception as e:
             self.assertTrue(False)
         # Edge cases - both empty or both filled    
         try:
-            self._testdata("Debet_PSP", "")
+            self._testdata("Kost", f"{self.cost + 1}", eOpusCostType.DEBET)
         except Exception as e:
-            self.assertTrue("Value error, Debet_PSP and Kredit_PSP must either both be empty or both filled".lower() in str(e).lower())  
+            self.assertTrue("Debet and Kredit Kost must be equal".lower() in str(e).lower())  
     # *************************************************************************************************************
-    def test_invoice_Kredit_PSP_data(self):
+    async def test_invoice_Debet_PSP_data(self):
         # Normal cases
         try:
-            self._testdata("Kredit_PSP", "XG-0000000204-00001")
+            self._testdata("PSP_element", "XG-0000000204-00001", eOpusCostType.DEBET)
+        except Exception as e:
+            self.assertTrue(False)
+        # Edge cases - both empty or both filled    
+        try:
+            self._testdata("PSP_element", "", eOpusCostType.DEBET)
+        except Exception as e:
+            self.assertTrue("Debet and Kredit PSP must either both be empty or both filled".lower() in str(e).lower())  
+    # *************************************************************************************************************
+    async def test_invoice_Kredit_PSP_data(self):
+        # Normal cases
+        try:
+            self._testdata("PSP_element", "XG-0000000204-00001", eOpusCostType.KREDIT)
         except Exception as e:
             self.assertTrue(False)
         # Edge cases - both empty or both filled
         try:
-            self._testdata("Kredit_PSP", "")
+            self._testdata("PSP_element", "", eOpusCostType.KREDIT)
         except Exception as e:
-            self.assertTrue("Value error, Debet_PSP and Kredit_PSP must either both be empty or both filled".lower() in str(e).lower())  
+            self.assertTrue("Debet and Kredit PSP must either both be empty or both filled".lower() in str(e).lower())  
     # *************************************************************************************************************
-    def test_invoice_Tekst_data(self):
+    async def test_invoice_Tekst_data(self):
         try:
             self._testdata("Tekst", "Some tekst")
         except Exception as e:
@@ -102,14 +140,14 @@ class TestInvoice(unittest.TestCase):
         except Exception as e:
             self.assertTrue("Value error, Tekst must not be empty".lower() in str(e).lower())  
     # *************************************************************************************************************
-    def test_invoice_Reference_data(self):
+    async def test_invoice_Reference_data(self):
         try:
             self._testdata("Reference", "Some tekst")
             self._testdata("Reference", "")
         except Exception as e:
             self.assertTrue(False)
     # *************************************************************************************************************
-    def test_invoice_Bookingdate_data(self):
+    async def test_invoice_Bookingdate_data(self):
         try:
             self._testdata("Bogføringsdato", "12.09.2025")
             self._testdata("Bogføringsdato", "")
@@ -121,62 +159,62 @@ class TestInvoice(unittest.TestCase):
         except Exception as e:
             self.assertTrue("Value error, Bogføringsdato must be in format dd.mm.yyyy (e.g. 12.09.2025)".lower() in str(e).lower())  
     # *************************************************************************************************************
-    def test_invoice_Kommentar_data(self):
+    async def test_invoice_Kommentar_data(self):
         try:
             self._testdata("Kommentar", "Some tekst")
             self._testdata("Kommentar", "")
         except Exception as e:
             self.assertTrue(False)
     # *************************************************************************************************************
-    def test_invoice_Debet_Artskonto_data(self):
+    async def test_invoice_Debet_Artskonto_data(self):
         try:
-            self._testdata("Debet_Artskonto", 40000000)
+            self._testdata("Artskonto", 40000000, eOpusCostType.DEBET)
         except Exception as e:
             self.assertTrue(False)
         # Edge cases - wrong format
         
         try:
-            self._testdata("Debet_Artskonto", "")
+            self._testdata("Artskonto", "", eOpusCostType.DEBET)
         except Exception as e:
             self.assertTrue("Input should be a valid integer, unable to parse string as an integer".lower() in str(e).lower())  
         
         try:
-            self._testdata("Debet_Artskonto", 4000)
+            self._testdata("Artskonto", 4000, eOpusCostType.DEBET)
         except Exception as e:
             self.assertTrue("Input should be greater than 9999999".lower() in str(e).lower())  
     # *************************************************************************************************************
-    def test_invoice_Kredit_Artskonto_data(self):
+    async def test_invoice_Kredit_Artskonto_data(self):
         try:
-            self._testdata("Kredit_Artskonto", 40000000)
+            self._testdata("Artskonto", 40000000, eOpusCostType.KREDIT)
         except Exception as e:
             self.assertTrue(False)
         # Edge cases - wrong format
         
         try:
-            self._testdata("Kredit_Artskonto", "")
+            self._testdata("Artskonto", "", eOpusCostType.KREDIT)
         except Exception as e:
             self.assertTrue("Input should be a valid integer, unable to parse string as an integer".lower() in str(e).lower())  
         
         try:
-            self._testdata("Kredit_Artskonto", 4000)
+            self._testdata("Artskonto", 4000, eOpusCostType.KREDIT)
         except Exception as e:
             self.assertTrue("Input should be greater than 9999999".lower() in str(e).lower())  
     # *************************************************************************************************************
-    def test_invoice_Debet_PosteringsTekst_data(self):
+    async def test_invoice_Debet_PosteringsTekst_data(self):
             try:
                 self._testdata("Debet_PosteringsTekst", "Some tekst")
                 self._testdata("Debet_PosteringsTekst", "")
             except Exception as e:
                 self.assertTrue(False)
     # *************************************************************************************************************
-    def test_invoice_Kredit_PosteringsTekst_data(self):
+    async def test_invoice_Kredit_PosteringsTekst_data(self):
             try:
                 self._testdata("Kredit_PosteringsTekst", "Some tekst")
                 self._testdata("Kredit_PosteringsTekst", "")
             except Exception as e:
                 self.assertTrue(False)
     # *************************************************************************************************************
-    def test_invoice_Kost_data(self):
+    async def test_invoice_Kost_data(self):
             try:
                 self._testdata("Kost", 10.0)
                 self._testdata("Kost", 20.0)
@@ -195,7 +233,7 @@ class TestInvoice(unittest.TestCase):
             except Exception as e:
                 self.assertTrue("Input should be greater than 0 ".lower() in str(e).lower())  
     # *************************************************************************************************************
-    def test_invoice_creation_login(self):
+    async def test_invoice_creation_login(self):
         try:
             opus = OpusConfig(url=self.opus_url, municipality_code=self.opus_municipality_code, username="bruger", password="kode1234")
             invoice = nkInvoice(opus_data=opus, invoice_data=self.invoice_data)
@@ -213,7 +251,7 @@ class TestInvoice(unittest.TestCase):
             #Error: Error in function '_start_opus_rollebaseret': Login failed: Enter your user ID in the format "domain\user" or "user@domain".
             self.assertTrue("_start_opus_rollebaseret" in str(e).lower() and "login failed" in str(e).lower() and "password" in str(e).lower())  
     # *************************************************************************************************************
-    def test_invoice_creation_bilag_files(self):
+    async def test_invoice_creation_bilag_files(self):
         try:
             self._testdata("BilagsFilePath", "/users/lakas/tmp/opus.csv")
             self._testdata("BilagsFilePath", "")
@@ -224,7 +262,7 @@ class TestInvoice(unittest.TestCase):
         except Exception as e:
             self.assertTrue("bilagsfilepath" in str(e).lower() and "path does not point to a file" in str(e).lower())  
     # *************************************************************************************************************
-    def test_invoice_creation_csv_file(self):
+    async def test_invoice_creation_csv_file(self):
         # Normal cases
         try:
             self._testdata("csv_filename", "/users/lakas/tmp/opus.csv")
@@ -250,14 +288,14 @@ class TestInvoice(unittest.TestCase):
         result = await invoice.create_invoice()
         #{'status': 'Succes', 'message': 'Bilag oprettet', 'Bilag': 'Omposteringsbilaget er kontrolleret og OK'}
         self.assertTrue(result['status'] == "Succes")
-        self.assertTrue("bilag oprettet" in result['message'].lower())
+        self.assertTrue("bilag ikke oprettet" in result['message'].lower())
         self.assertTrue("bilaget er kontrolleret og ok" in result['bilag'].lower())
 
         invoice._headless=True
         result = await invoice.create_invoice()
         #{'status': 'Succes', 'message': 'Bilag oprettet', 'Bilag': 'Omposteringsbilaget er kontrolleret og OK'}
         self.assertTrue(result['status'] == "Succes")
-        self.assertTrue("bilag oprettet" in result['message'].lower())
+        self.assertTrue("bilag ikke oprettet" in result['message'].lower())
         self.assertTrue("bilaget er kontrolleret og ok" in result['bilag'].lower())
     # *************************************************************************************************************
     async def test_invoice_creation_all_fields_except_bilag(self):
@@ -270,14 +308,14 @@ class TestInvoice(unittest.TestCase):
         result = await invoice.create_invoice()
         #{'status': 'Succes', 'message': 'Bilag oprettet', 'Bilag': 'Omposteringsbilaget er kontrolleret og OK'}
         self.assertTrue(result['status'] == "Succes")
-        self.assertTrue("bilag oprettet" in result['message'].lower())
+        self.assertTrue("bilag ikke oprettet" in result['message'].lower())
         self.assertTrue("bilaget er kontrolleret og ok" in result['bilag'].lower())
 
         invoice._headless=True
         result = await invoice.create_invoice()
         #{'status': 'Succes', 'message': 'Bilag oprettet', 'Bilag': 'Omposteringsbilaget er kontrolleret og OK'}
         self.assertTrue(result['status'] == "Succes")
-        self.assertTrue("bilag oprettet" in result['message'].lower())
+        self.assertTrue("bilag ikke oprettet" in result['message'].lower())
         self.assertTrue("bilaget er kontrolleret og ok" in result['bilag'].lower())
     # *************************************************************************************************************
     async def test_invoice_creation_all_fields_except_Reference_Comments(self):
@@ -291,14 +329,14 @@ class TestInvoice(unittest.TestCase):
         result = await invoice.create_invoice()
         #{'status': 'Succes', 'message': 'Bilag oprettet', 'Bilag': 'Omposteringsbilaget er kontrolleret og OK'}
         self.assertTrue(result['status'] == "Succes")
-        self.assertTrue("bilag oprettet" in result['message'].lower())
+        self.assertTrue("bilag ikke oprettet" in result['message'].lower())
         self.assertTrue("bilaget er kontrolleret og ok" in result['bilag'].lower())
 
         invoice._headless=True
         result = await invoice.create_invoice()
         #{'status': 'Succes', 'message': 'Bilag oprettet', 'Bilag': 'Omposteringsbilaget er kontrolleret og OK'}
         self.assertTrue(result['status'] == "Succes")
-        self.assertTrue("bilag oprettet" in result['message'].lower())
+        self.assertTrue("bilag ikke oprettet" in result['message'].lower())
         self.assertTrue("bilaget er kontrolleret og ok" in result['bilag'].lower())
 
 if __name__ == '__main__':
