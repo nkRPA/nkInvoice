@@ -53,7 +53,6 @@ async def main():
     cost1:float = 1.0
     cost2:float = 2.0
 
-   
     cost_data_list = [
             {
                 "Artskonto":"40000000",

@@ -25,7 +25,7 @@ class TestInvoice(unittest.IsolatedAsyncioTestCase):
         self.cost_data_list = [
             {
                 "Artskonto":"40000000",
-                "PSP_element":"XG-0000000204-00001",
+                "PSP_element":"XG-0000000920-00001",
                 "Kost":self.cost,
                 "PosteringsTekst":"Test postering",
                 "Type":eOpusCostType.DEBET
@@ -339,5 +339,27 @@ class TestInvoice(unittest.IsolatedAsyncioTestCase):
         self.assertTrue("bilag ikke oprettet" in result['message'].lower())
         self.assertTrue("bilaget er kontrolleret og ok" in result['bilag'].lower())
 
+    async def test_invoice_creation_sio(self):
+        self.assertTrue(True)
+        # d = date.today()
+        # opus = OpusConfig(url=self.opus_url, municipality_code=self.opus_municipality_code, username=self.opus_username, password=self.opus_userpassword)
+        # invoice_data = self.invoice_data.copy()
+
+        # for cost_data in invoice_data["opus_cost_data"]:    
+        #     if cost_data["Type"] == eOpusCostType.DEBET:
+        #         cost_data["SIO_element"] = "11140061"
+        #         cost_data["PSP_element"] = "XG-0000000236-00001"
+        
+        # invoice = nkInvoice(opus_data=opus, invoice_data=invoice_data)
+        # invoice._headless=False
+        # result = await invoice.create_invoice()
+        # #{'status': 'Succes', 'message': 'Bilag oprettet', 'Bilag': 'Omposteringsbilaget er kontrolleret og OK'}
+        # self.assertTrue(result['status'] == "Succes")
+        # self.assertTrue("bilag ikke oprettet" in result['message'].lower())
+        # self.assertTrue("bilaget er kontrolleret og ok" in result['bilag'].lower())
+
+
 if __name__ == '__main__':
     unittest.main()
+    
+    

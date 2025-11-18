@@ -63,6 +63,7 @@ class OpusCostData(BaseModel):
     # Attributes
     Artskonto: int = Field(gt=9999999, lt=100000000)
     PSP_element:str|None = ""
+    SIO_element:str|None = ""
     Kost: confloat(gt=0.0)
     PosteringsTekst:str
     Type: eOpusCostType
@@ -320,12 +321,16 @@ class nkInvoice(BaseModel):
     @_exception_helper
     async def _create_csv(self):
         """Create a CSV file for Opus import based on invoice data."""
+        #40000000;;#PSP#;;#SIO#;Debet;#PRICE#;;#TXT#;;;;;;;;;;;;;;;;
+        #40000000;;#PSP#;;;Kredit;#PRICE#;;#TXT#;;;;;;;;;;;;;;;;
+
         self._log(message="Creating CSV file for Opus import", level=LogLevel.INFO)
         csv_data = []
         
         for cost_data in self.invoice_data.opus_cost_data:
             self._log_verbose(message=f"arts konto: {cost_data.Artskonto}")
             self._log_verbose(message=f"PSP: {cost_data.PSP_element}")
+            self._log_verbose(message=f"SIO: {cost_data.SIO_element}")
             self._log_verbose(message=f"Kost: {cost_data.Kost}")
             self._log_verbose(message=f"posterings tekst: {cost_data.PosteringsTekst}")
             csv_data.append(
@@ -334,7 +339,7 @@ class nkInvoice(BaseModel):
                     "",
                     cost_data.PSP_element if cost_data.PSP_element else "",
                     "",
-                    "",
+                    cost_data.SIO_element if cost_data.SIO_element else "",
                     "Debet" if cost_data.Type == eOpusCostType.DEBET else "Kredit",
                     f"{cost_data.Kost:.1f}".replace(".", ","),
                         "",
