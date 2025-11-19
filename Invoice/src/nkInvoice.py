@@ -401,6 +401,10 @@ class nkInvoice(BaseModel):
     ### ***********************************************************
     @_exception_helper
     async def _upload_file(self, locator:str, file_path: str):
+        path = Path(file_path)
+        if not path.exists():
+            raise FileNotFoundError(f"File to upload not found: {file_path}")
+        
         self._log(message=f"Uploading file:{file_path}", level=LogLevel.INFO)
         """Handle file attachment in popup window"""
         # Click the attachment button
