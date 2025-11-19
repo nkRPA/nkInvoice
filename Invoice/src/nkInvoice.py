@@ -234,7 +234,7 @@ class nkInvoice(BaseModel):
     async def _fill_opus_page(self):
         # Fill the OPUS page with invoice data
         self._log(message="Start filling data in OPUS page", level=LogLevel.INFO)
-        Invoice = "Fejlet"
+        Invoice_status = "Fejlet"
         status_text = "Ikke afviklet"
         text = "Ikke afviklet"
         # Wait for page to load
@@ -261,13 +261,13 @@ class nkInvoice(BaseModel):
                 text = "Bilag oprettet"
             else:
                 text = "Bilag ikke oprettet"
-            Invoice = "Succes"
+            Invoice_status = "Succes"
             
         else:
-            Invoice = "Fejlet"
+            Invoice_status = "Fejlet"
             text = "Bilag ikke oprettet"
         # Opret bilag
-        self._result = {"status": Invoice, "message": text, "bilag": status_text}
+        self._result = {"status": Invoice_status, "message": text, "bilag": status_text}
         self._log_verbose(message=f"End filling data in OPUS page with result: {self._result}")
     ### ***********************************************************
     ### ***********************************************************
