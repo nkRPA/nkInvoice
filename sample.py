@@ -98,30 +98,29 @@ async def main():
     
     
     invoice_data = {
-        "Tekst": "Test af tekst",
-        "opus_cost_data": [
-            {
-                "Artskonto": "40000000",
-                "PSP_element": "XG-0000003295-00008",
-                "Kost": 1.0,
-                "PosteringsTekst": "Test postering 1",
-                "Type": "DEBET"
-            },
-            {
-                "Artskonto": "40000000",
-                "PSP_element": "XG-0000002473-00029",
-                "Kost": 1.0,
-                "PosteringsTekst": "Test postering 1",
-                "Type": "KREDIT"
-            }
-        ],
-        "Reference": "test af ref",
-        "Bogføringsdato": "04.12.2025",
-        "Kommentar": "test af comment",
-        "BilagsFilePath": "/Users/lakas/tmp/file_path.txt",
-        "csv_filename": "/Users/lakas/tmp/opus.csv"
-    }
-    
+            "Tekst": "Test af tekst",
+            "Reference": "test af ref",
+            "Bogføringsdato": "04.12.2025",
+            "Kommentar": "test af comment",
+            "BilagsFilePath": "/Users/lakas/tmp/file_path.txt",
+            "csv_filename": "/Users/lakas/tmp/opus.csv",
+            "opus_cost_data": [
+                {
+                    "Artskonto": "40000000",
+                    "PSP_element": "XG-0000003295-00008",
+                    "Kost": 1.0,
+                    "PosteringsTekst": "Test postering 1",
+                    "Type": "DEBET"
+                },
+                {
+                    "Artskonto": "40000000",
+                    "PSP_element": "XG-0000002473-00029",
+                    "Kost": 1.0,
+                    "PosteringsTekst": "Test postering 1",
+                    "Type": "KREDIT"
+                }
+            ],
+        }
     
     try:
         # Create an instance of nkInvoice
