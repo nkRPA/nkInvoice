@@ -293,6 +293,7 @@ class nkInvoice(BaseModel):
     ### ***********************************************************
     @_exception_helper
     async def _start_opus_rollebaseret(self, playwright)-> tuple[Browser, BrowserContext, Page]:
+        self._log_verbose(message=f"Starting Opus rollebaseret")
         self._browser = await playwright.chromium.launch(headless=self._headless)
         self._context = await self._browser.new_context()
         self._page = await self._context.new_page()
