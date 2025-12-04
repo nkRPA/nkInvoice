@@ -293,7 +293,7 @@ class nkInvoice(BaseModel):
     ### ***********************************************************
     @_exception_helper
     async def _start_opus_rollebaseret(self, playwright)-> tuple[Browser, BrowserContext, Page]:
-        self._log_verbose(message=f"Starting Opus rollebaseret")
+        self._log(message=f"*********** Starting Opus rollebaseret ***********", level=LogLevel.INFO)
         self._browser = await playwright.chromium.launch(headless=self._headless)
         self._context = await self._browser.new_context()
         self._page = await self._context.new_page()
@@ -303,14 +303,15 @@ class nkInvoice(BaseModel):
         self._log_verbose(message=f"Filled username: {self.opus_data.username}")
         await self._page.get_by_role("textbox", name="Password").fill(self.opus_data.password)
         self._log_verbose(message=f"Filled password: {self.opus_data.password}")
-        
-        try:
-            await self._page.get_by_role("button", name="Sign in").click()
-            self._log_verbose(message="Clicked sign in button")
-        except Exception as e:
-            self._log(message=f"Sign in button not found: {e}", level=LogLevel.ERROR)
-            self._log(message=f"Pressing Enter instead", level=LogLevel.INFO)
-            await self._page.get_by_role("textbox", name="Password").press("Enter")
+        await self._page.get_by_role("textbox", name="Password").press("Enter")
+        self._log_verbose(message="Pressed Enter after filling password")
+        # try:
+        #     await self._page.get_by_role("button", name="Sign in").click()
+        #     self._log_verbose(message="Clicked sign in button")
+        # except Exception as e:
+        #     self._log(message=f"Sign in button not found: {e}", level=LogLevel.ERROR)
+        #     self._log(message=f"Pressing Enter instead", level=LogLevel.INFO)
+        #     await self._page.get_by_role("textbox", name="Password").press("Enter")
 
 
 
