@@ -299,14 +299,21 @@ class nkInvoice(BaseModel):
         url = self.opus_data.valid_url()
         await self._page.goto(url)
         await self._page.get_by_role("textbox", name="User Account").fill(self.opus_data.username)
+        self._log_verbose(message=f"Filled username: {self.opus_data.username}")
         await self._page.get_by_role("textbox", name="Password").fill(self.opus_data.password)
-        await self._page.get_by_role("button", name="Sign in").click()
+        self._log_verbose(message=f"Filled password: {self.opus_data.password}")
         
         try:
-            self._log_verbose(message="Waiting for network to be idle after login")
-            self._page.wait_for_load_state('networkidle', timeout=10000)
-        except:
-            pass
+            await self._page.get_by_role("button", name="Sign in").click()
+            self._log_verbose(message="Clicked sign in button")
+        except Exception as e:
+            self._log(message=f"Sign in button not found: {e}", level=LogLevel.ERROR)
+            self._log(message=f"Pressing Enter instead", level=LogLevel.INFO)
+            await self._page.get_by_role("textbox", name="Password").press("Enter")
+            
+            raise RuntimeError("Sign in button not found")
+        
+        
         
         error_message = await self.check_login_error()
         if error_message:

@@ -8,6 +8,8 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from email.mime.application import MIMEApplication
 import asyncio
+import inspect
+import pprint
 
 load_dotenv()
 
@@ -123,6 +125,15 @@ async def main():
         }
     
     try:
+        print("nkInvoice loaded from:", inspect.getsourcefile(nkInvoice))
+
+        # See what invoice_data actually looks like in this script
+        print("\ninvoice_data field in this script:")
+        print(nkInvoice.model_fields["invoice_data"])
+
+        print("\nSchema for nkInvoice in this script:")
+        pprint.pp(nkInvoice.model_json_schema()["properties"]["invoice_data"])
+        
         # Create an instance of nkInvoice
         invoice = nkInvoice(opus_data=opus_data, invoice_data=invoice_data)
         # Set headless and verbose mode
