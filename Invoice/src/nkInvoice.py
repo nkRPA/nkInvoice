@@ -311,11 +311,10 @@ class nkInvoice(BaseModel):
             self._log(message=f"Sign in button not found: {e}", level=LogLevel.ERROR)
             self._log(message=f"Pressing Enter instead", level=LogLevel.INFO)
             await self._page.get_by_role("textbox", name="Password").press("Enter")
-            
-            raise RuntimeError("Sign in button not found")
-        
-        
-        
+
+
+
+
         error_message = await self.check_login_error()
         if error_message:
             self._log(message=f"Login failed: {error_message}", level=LogLevel.ERROR)
