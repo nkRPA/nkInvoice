@@ -13,7 +13,7 @@ from enum import Enum, auto
 import time
 import asyncio
 from playwright.async_api import async_playwright
-
+from time import sleep
 import locale
 
 #### ********************************************************************************************************************
@@ -166,18 +166,20 @@ class nkInvoice(BaseModel):
         
         for run in range(try_number, max_retries):
             try:
+                self._log(message=f"Try invoice creation, attempt {try_number} of {max_retries} - FAILED", level=LogLevel.WARNING)
                 self._log(message="Start creation of invoice -> _create_invoice()", level=LogLevel.INFO)
                 return await self._create_invoice()
             except Exception as e:
                 self._log(message=f"Try invoice creation exception: {e}", level=LogLevel.WARNING)
                 # closing browser
                 try:
+                    sleep(1)
                     self._context.close()
                     self._browser.close()
+                    sleep(1)
                 except:
                     pass
                 
-                self._log(message=f"Try invoice creation, attempt {try_number} of {max_retries} - FAILED", level=LogLevel.WARNING)
                 
         return await self._create_invoice()
         
