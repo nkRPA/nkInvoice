@@ -64,7 +64,7 @@ class OpusCostData(BaseModel):
     Artskonto: int = Field(gt=9999999, lt=100000000)
     PSP_element:str|None = ""
     SIO_element:str|None = ""
-    Kost: confloat(gt=0.0)
+    Kost: float#confloat(gt=0.0)
     PosteringsTekst:str
     Type: eOpusCostType
 
