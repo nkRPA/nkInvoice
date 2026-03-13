@@ -307,16 +307,6 @@ class nkInvoice(BaseModel):
         self._log_verbose(message=f"Filled password: {self.opus_data.password}")
         await self._page.get_by_role("textbox", name="Password").press("Enter")
         self._log_verbose(message="Pressed Enter after filling password")
-        # try:
-        #     await self._page.get_by_role("button", name="Sign in").click()
-        #     self._log_verbose(message="Clicked sign in button")
-        # except Exception as e:
-        #     self._log(message=f"Sign in button not found: {e}", level=LogLevel.ERROR)
-        #     self._log(message=f"Pressing Enter instead", level=LogLevel.INFO)
-        #     await self._page.get_by_role("textbox", name="Password").press("Enter")
-
-
-
 
         error_message = await self.check_login_error()
         if error_message:
@@ -449,10 +439,6 @@ class nkInvoice(BaseModel):
                         await file_input.click()
                         file_chooser = await fc_info.value
                         await file_chooser.set_files(file_path)
-                    # with self._page.expect_file_chooser() as fc_info:
-                    #     file_input.click()
-                    #     file_chooser = fc_info.value
-                    #     file_chooser.set_files(file_path)
                     attachment_file=True
                     self._log(message="File attached successfully", level=LogLevel.INFO)
                     break
