@@ -263,13 +263,12 @@ class nkInvoice(BaseModel):
         if status_text == 'Omposteringsbilaget er kontrolleret og OK':
             if self.create_invoice_allowed:
                 status_text = await self.create_actual_invoice()
-                await self._takescreenshoot()
+                await self._takescreenshoot(take_screenshot=self.take_screenshot)
                 text = "Bilag oprettet"
             else:
                 text = "Bilag ikke oprettet"
-                await self._takescreenshoot()
+                await self._takescreenshoot(take_screenshot=self.take_screenshot)
             Invoice_status = "Succes"
-            
         else:
             Invoice_status = "Fejlet"
             text = "Bilag ikke oprettet"
@@ -291,10 +290,10 @@ class nkInvoice(BaseModel):
         except Exception as e:
             self._log(message=f"Error deleting temporary files: {e}", level=LogLevel.ERROR)
 
-    async def _takescreenshoot(self):
+    async def _takescreenshoot(self, take_screenshot: bool = True):
         ## Take screenshot if enabled
         try:
-            if self.take_screenshot:
+            if take_screenshot:
                 self._delete_files = False
                 timestamp = time.strftime("%Y%m%d-%H%M%S") 
                 if self.screen_shot_fileprefix and len(self.screen_shot_fileprefix.strip()) > 0:
