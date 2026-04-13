@@ -141,9 +141,11 @@ class nkInvoice(BaseModel):
     opus_data: OpusConfig
     
     create_invoice_allowed:bool = False
+    take_screenshot: bool = False
     _headless: bool = False
     _verbose: bool = False    
     _logger: logging.Logger = None
+    _delete_files: bool = True
     ### ------------------------------------------------------------------------------------------------------
     ### Methods
     ### ------------------------------------------------------------------------------------------------------
@@ -260,9 +262,11 @@ class nkInvoice(BaseModel):
         if status_text == 'Omposteringsbilaget er kontrolleret og OK':
             if self.create_invoice_allowed:
                 status_text = await self.create_actual_invoice()
+                await self._takescreenshoot()
                 text = "Bilag oprettet"
             else:
                 text = "Bilag ikke oprettet"
+                await self._takescreenshoot()
             Invoice_status = "Succes"
             
         else:
@@ -271,8 +275,33 @@ class nkInvoice(BaseModel):
         # Opret bilag
         self._result = {"status": Invoice_status, "message": text, "bilag": status_text}
         self._log_verbose(message=f"End filling data in OPUS page with result: {self._result}")
+        
     ### ***********************************************************
     ### ***********************************************************
+    async def _delete_files(self):
+        try:
+            if self._delete_files:
+                if self.invoice_data.csv_filename.exists():
+                    self.invoice_data.csv_filename.unlink()
+                    self._log_verbose(message=f"Deleted temporary CSV file: {self.invoice_data.csv_filename}")
+                if self.invoice_data.BilagsFilePath and Path(self.invoice_data.BilagsFilePath).exists():
+                    Path(self.invoice_data.BilagsFilePath).unlink()
+                    self._log_verbose(message=f"Deleted temporary attachment file: {self.invoice_data.BilagsFilePath}")
+        except Exception as e:
+            self._log(message=f"Error deleting temporary files: {e}", level=LogLevel.ERROR)
+
+    async def _takescreenshoot(self):
+        ## Take screenshot if enabled
+        try:
+            if self.take_screenshot:
+                self._delete_files = False
+                timestamp = time.strftime("%Y%m%d-%H%M%S")
+                screenshot_path = f"opus_screenshot_{timestamp}.png"
+                await self._page.screenshot(path=screenshot_path)
+                self._log(message=f"Screenshot taken: {screenshot_path}", level=LogLevel.INFO)
+        except Exception as e:
+            self._log(message=f"Failed to take screenshot: {e}", level=LogLevel.WARNING)
+    
     async def check_login_error(self):
         # Wait until the form is visible (ensures DOM is loaded)
         try:
