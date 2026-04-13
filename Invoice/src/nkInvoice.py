@@ -142,6 +142,7 @@ class nkInvoice(BaseModel):
     
     create_invoice_allowed:bool = False
     take_screenshot: bool = False
+    screen_shoot_fileprefix: str = ""
     _headless: bool = False
     _verbose: bool = False    
     _logger: logging.Logger = None
@@ -295,8 +296,13 @@ class nkInvoice(BaseModel):
         try:
             if self.take_screenshot:
                 self._delete_files = False
-                timestamp = time.strftime("%Y%m%d-%H%M%S")
-                screenshot_path = f"opus_screenshot_{timestamp}.png"
+                timestamp = time.strftime("%Y%m%d-%H%M%S") 
+                if self.screen_shoot_fileprefix and len(self.screen_shoot_fileprefix.strip()) > 0:
+                    prefix = self.screen_shoot_fileprefix.strip()
+                else:
+                    prefix = "opus_screenshot"
+                    
+                screenshot_path = f"{prefix}_{timestamp}.png"
                 await self._page.screenshot(path=screenshot_path)
                 self._log(message=f"Screenshot taken: {screenshot_path}", level=LogLevel.INFO)
         except Exception as e:
