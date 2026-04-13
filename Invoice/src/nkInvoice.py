@@ -146,7 +146,7 @@ class nkInvoice(BaseModel):
     _headless: bool = False
     _verbose: bool = False    
     _logger: logging.Logger = None
-    _delete_files: bool = True
+    _delete_tmp_files: bool = True
     ### ------------------------------------------------------------------------------------------------------
     ### Methods
     ### ------------------------------------------------------------------------------------------------------
@@ -280,7 +280,7 @@ class nkInvoice(BaseModel):
     ### ***********************************************************
     async def _delete_files(self):
         try:
-            if self._delete_files:
+            if self._delete_tmp_files:
                 if self.invoice_data.csv_filename.exists():
                     self.invoice_data.csv_filename.unlink()
                     self._log_verbose(message=f"Deleted temporary CSV file: {self.invoice_data.csv_filename}")
