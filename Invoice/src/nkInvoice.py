@@ -143,10 +143,11 @@ class nkInvoice(BaseModel):
     create_invoice_allowed:bool = False
     take_screenshot: bool = False
     screen_shot_fileprefix: str = ""
+    delete_tmp_files: bool = True
     _headless: bool = False
     _verbose: bool = False    
     _logger: logging.Logger = None
-    _delete_tmp_files: bool = True
+    
     ### ------------------------------------------------------------------------------------------------------
     ### Methods
     ### ------------------------------------------------------------------------------------------------------
@@ -280,7 +281,7 @@ class nkInvoice(BaseModel):
     ### ***********************************************************
     async def _delete_files(self):
         try:
-            if self._delete_tmp_files:
+            if self.delete_tmp_files:
                 if self.invoice_data.csv_filename.exists():
                     self.invoice_data.csv_filename.unlink()
                     self._log_verbose(message=f"Deleted temporary CSV file: {self.invoice_data.csv_filename}")
@@ -294,7 +295,7 @@ class nkInvoice(BaseModel):
         ## Take screenshot if enabled
         try:
             if take_screenshot:
-                self._delete_files = False
+                self.delete_tmp_files = False
                 timestamp = time.strftime("%Y%m%d-%H%M%S") 
                 if self.screen_shot_fileprefix and len(self.screen_shot_fileprefix.strip()) > 0:
                     prefix = self.screen_shot_fileprefix.strip()
