@@ -166,6 +166,7 @@ class nkInvoice(BaseModel):
             ValueError: If there are validation errors in the input data.
             """  
         self.create_invoice_allowed=create_invoice_allowed
+        self._log(message=f"Invoice creation started with create_invoice_allowed={create_invoice_allowed}, max_retries={max_retries}, try_number={try_number}", level=LogLevel.INFO)    
         await self._create_csv()
         
         for run in range(try_number, max_retries):
@@ -260,10 +261,11 @@ class nkInvoice(BaseModel):
         await self._fill_csv()
         # Kontroller bilag
         status_text = await self._check_invoice()
-        self._log_verbose(message=f"Status text after checking invoice: {status_text}")
+        self._log(message=f"Status text after checking invoice: {status_text}", level=LogLevel.INFO)
         if status_text == 'Omposteringsbilaget er kontrolleret og OK':
             if self.create_invoice_allowed:
                 status_text = await self.create_actual_invoice()
+                self._log(message=f"Status text after creating invoice: {status_text}", level=LogLevel.INFO)
                 await self._takescreenshoot(take_screenshot=self.take_screenshot)
                 text = "Bilag oprettet"
             else:
@@ -540,28 +542,34 @@ class nkInvoice(BaseModel):
     ### ***********************************************************
     @_exception_helper
     async def create_actual_invoice(self):
-        if self.create_invoice_allowed:
-            self._log(message="Creating invoice", level=LogLevel.INFO)
-            frame = self._page.frame_locator("#contentAreaFrame").frame_locator("#isolatedWorkArea")
-            control_button = frame.locator('div[title*="Opret ompostering"]')
-            self._log_verbose(message="Clicking create button")
-            await control_button.click()
-            self._log_verbose(message="Waiting for creation to complete")
-            await self._page.wait_for_timeout(2000)
-            status_text = "no_invoice"
-            
-            try:
-                status_text = await self._get_status_text(frame)
-            except Exception:
+        try:
+            if self.create_invoice_allowed:
+                self._log(message="**** Creating invoice for real ****", level=LogLevel.INFO)
+                frame = self._page.frame_locator("#contentAreaFrame").frame_locator("#isolatedWorkArea")
+                control_button = frame.locator('div[title*="Opret ompostering"]')
+                self._log_verbose(message="Clicking create button")
+                await control_button.click()
+                self._log_verbose(message="Waiting for creation to complete")
                 await self._page.wait_for_timeout(2000)
-                status_text = None
+                status_text = "no_invoice"
                 
-            if status_text is None:
-                status_text = await self._get_status_text(frame)
+                try:
+                    self._log_verbose(message="Attempting to get status text after invoice creation")
+                    status_text = await self._get_status_text(frame)
+                except Exception as exp:
+                    self._log(message=f"Error getting status text after invoice creation, setting status_text to None: {exp}", level=LogLevel.WARNING)
+                    await self._page.wait_for_timeout(2000)
+                    status_text = None
+                    
+                if status_text is None:
+                    status_text = await self._get_status_text(frame)
 
-            return status_text
-        else:
-            return "Not allowed!"
+                return status_text
+            else:
+                return "Not allowed!"
+        except Exception as e:
+            self._log(message=f"Error during invoice creation: {e}", level=LogLevel.ERROR)
+            return f"Error during invoice creation: {e}"
         
         
 
