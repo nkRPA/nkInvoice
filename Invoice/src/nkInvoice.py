@@ -171,12 +171,11 @@ class nkInvoice(BaseModel):
         
         for run in range(try_number, max_retries):
             try:
-                self._log(message=f"Try invoice creation, attempt {try_number} of {max_retries} - FAILED", level=LogLevel.WARNING)
+                self._log(message=f"Try invoice creation, attempt {try_number} of {max_retries} - FAILED", level=LogLevel.INFO)
                 self._log(message="Start creation of invoice -> _create_invoice()", level=LogLevel.INFO)
                 result = await self._create_invoice()
-                if self._verbose:
-                    self._log(message="Sleeping for 10 seconds before deleting temporary files to ensure all processes are completed", level=LogLevel.DEBUG)
-                    sleep(10)
+                self._log(message=" #########  Sleeping for 10 seconds ##############", level=LogLevel.INFO)
+                sleep(10)
                 return result
             except Exception as e:
                 self._log(message=f"Try invoice creation exception: {e}", level=LogLevel.WARNING)
@@ -192,9 +191,8 @@ class nkInvoice(BaseModel):
                 
         result = await self._create_invoice()
         ## sleep for a while to ensure all processes are completed before deleting files
-        if self._verbose:
-            self._log(message="Sleeping for 10 seconds before deleting temporary files to ensure all processes are completed", level=LogLevel.DEBUG)
-            sleep(10)
+        self._log(message=" #########  Sleeping for 10 seconds ##############", level=LogLevel.INFO)
+        sleep(10)
             
         return result
         
