@@ -384,7 +384,7 @@ class nkInvoice(BaseModel):
                     "",
                     cost_data.SIO_element if cost_data.SIO_element else "",
                     "Debet" if cost_data.Type == eOpusCostType.DEBET else "Kredit",
-                    f"{cost_data.Kost:.1f}".replace(".", ","),
+                    f"{cost_data.Kost:.2f}".replace(".", ","),
                         "",
                     cost_data.PosteringsTekst if cost_data.PosteringsTekst else "",
                     "","","","","","","","","","","","","","",""
