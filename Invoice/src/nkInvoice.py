@@ -390,7 +390,7 @@ class nkInvoice(BaseModel):
                     "","","","","","","","","","","","","","",""
                 ])
 
-        self._log_verbose(message=f"CSV data to write: {csv_data}")
+        self._log(message=f"CSV data to write: {csv_data}")
         self._create_opus_csv(data=csv_data)
     ### ***********************************************************
     ### ***********************************************************
