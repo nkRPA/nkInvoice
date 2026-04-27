@@ -188,9 +188,8 @@ class nkInvoice(BaseModel):
                 
         result = await self._create_invoice()
         ## sleep for a while to ensure all processes are completed before deleting files
-        if self._verbose:
-            self._log(message="Sleeping for 10 seconds before deleting temporary files to ensure all processes are completed", level=LogLevel.DEBUG)
-            sleep(10)
+        self._log(message="Sleeping for 10 seconds before deleting temporary files to ensure all processes are completed", level=LogLevel.DEBUG)
+        sleep(10)
             
         return result
         
