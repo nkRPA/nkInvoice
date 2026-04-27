@@ -207,9 +207,6 @@ class nkInvoice(BaseModel):
             # await self._create_csv()
             await self._start_opus_rollebaseret(playwright)
             await self._fill_opus_page()
-            self._log(message=" #########  Sleeping for 10 seconds ##############", level=LogLevel.INFO)
-            sleep(10)
-
             self._log(message="End creation of invoice", level=LogLevel.INFO)
             self._context.close()
             self._browser.close()
@@ -558,8 +555,8 @@ class nkInvoice(BaseModel):
                 await self._page.wait_for_timeout(8000)
                 status_text = "no_invoice"
                 try:
-                    self._log(message=" #########  Sleeping for 2 seconds ##############", level=LogLevel.INFO)
-                    sleep(2)
+                    self._log(message=" #########  Sleeping for 4 seconds ##############", level=LogLevel.INFO)
+                    sleep(4)
 
                     self._log_verbose(message="Attempting to get status text after invoice creation")
                     status_text = await self._get_status_text(frame)
