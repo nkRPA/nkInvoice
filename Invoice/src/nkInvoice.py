@@ -263,6 +263,7 @@ class nkInvoice(BaseModel):
         status_text = await self._check_invoice()
         self._log(message=f"Status text after checking invoice: {status_text}", level=LogLevel.INFO)
         if status_text == 'Omposteringsbilaget er kontrolleret og OK':
+            await self._takescreenshoot(take_screenshot=self.take_screenshot)
             if self.create_invoice_allowed:
                 status_text = await self.create_actual_invoice()
                 self._log(message=f"Status text after creating invoice: {status_text}", level=LogLevel.INFO)
@@ -552,7 +553,6 @@ class nkInvoice(BaseModel):
                 self._log_verbose(message="Waiting for creation to complete")
                 await self._page.wait_for_timeout(2000)
                 status_text = "no_invoice"
-                
                 try:
                     self._log_verbose(message="Attempting to get status text after invoice creation")
                     status_text = await self._get_status_text(frame)
