@@ -186,7 +186,13 @@ class nkInvoice(BaseModel):
                     pass
                 
                 
-        return await self._create_invoice()
+        result = await self._create_invoice()
+        ## sleep for a while to ensure all processes are completed before deleting files
+        if self._verbose:
+            self._log(message="Sleeping for 10 seconds before deleting temporary files to ensure all processes are completed", level=LogLevel.DEBUG)
+            sleep(10)
+            
+        return result
         
     ### ------------------------------------------------------------------------------------------------------
     ### PRIVATE METHODS
@@ -551,7 +557,7 @@ class nkInvoice(BaseModel):
                 self._log_verbose(message="Clicking create button")
                 await control_button.click()
                 self._log_verbose(message="Waiting for creation to complete")
-                await self._page.wait_for_timeout(2000)
+                await self._page.wait_for_timeout(8000)
                 status_text = "no_invoice"
                 try:
                     self._log_verbose(message="Attempting to get status text after invoice creation")
