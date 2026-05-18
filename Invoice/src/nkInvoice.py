@@ -152,7 +152,7 @@ class nkInvoice(BaseModel):
     ### Methods
     ### ------------------------------------------------------------------------------------------------------
     ### PUBLIC METHODS
-    async def create_invoice(self, create_invoice_allowed:bool = False, max_retries: int = 3, try_number: int = 1) -> dict:
+    async def create_invoice(self, create_invoice_allowed:bool = False, max_retries: int = 3, try_number: int = 1, sleep_time:float=1.0) -> dict:
         
         """Create an invoice in the Opus system using Playwright.
             runs the full process of creating an invoice in Opus using the provided invoice data.
@@ -176,12 +176,13 @@ class nkInvoice(BaseModel):
                 return await self._create_invoice()
             except Exception as e:
                 self._log(message=f"Try invoice creation exception: {e}", level=LogLevel.WARNING)
+                self._log(message=f"Waiting {sleep_time} second(s)", level=LogLevel.WARNING)
                 # closing browser
                 try:
                     sleep(1)
                     self._context.close()
                     self._browser.close()
-                    sleep(1)
+                    sleep(sleep_time)
                 except:
                     pass
                 
