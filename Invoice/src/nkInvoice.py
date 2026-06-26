@@ -535,6 +535,8 @@ class nkInvoice(BaseModel):
         self._log(message="Checking invoice", level=LogLevel.INFO)
         frame = self._page.frame_locator("#contentAreaFrame").frame_locator("#isolatedWorkArea")
         control_button = frame.locator('div[title*="Kontroller bilag"]')
+        self._log_verbose(message="Waiting for block layer to clear")
+        await self._page.wait_for_selector("#urPopupWindowBlockLayer", state="hidden", timeout=30000)
         self._log_verbose(message="Clicking control button")
         await control_button.click()
         self._log_verbose(message="Waiting for control to complete")
