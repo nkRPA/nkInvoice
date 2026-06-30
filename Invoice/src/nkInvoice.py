@@ -497,6 +497,54 @@ class nkInvoice(BaseModel):
         ok_button = iframe.locator("div.lsButton:has(span:has-text('OK'))")
         await ok_button.press("Enter")                        
         self._log_verbose(message="Attachment process completed")
+
+    async def _upload_file_v2(self, locator: str, file_path: str):
+        path = Path(file_path)
+        if not path.exists():
+            raise FileNotFoundError(f"File to upload not found: {file_path}")
+
+        self._log(message=f"Uploading file: {file_path}", level=LogLevel.INFO)
+        self._log_verbose(message=f"Uploading file using locator: {locator}")
+
+        self._log_verbose(message="Waiting for block layer to clear")
+        await self._page.wait_for_selector("#urPopupWindowBlockLayer", state="hidden", timeout=30000)
+
+        frame = self._page.frame_locator("#contentAreaFrame").frame_locator("#isolatedWorkArea")
+        attachment_button = frame.locator(locator)
+        self._log_verbose(message="Clicking attachment button")
+        await attachment_button.click()
+        await self._page.wait_for_timeout(3000)
+
+        self.verbose_log_frames()
+
+        attachment_file = False
+        popup_iframe = None
+        for iframe_selector in IFRAME_SELECTORS:
+            try:
+                self._log(message=f"Trying iframe selector: {iframe_selector}")
+                iframe = self._page.frame_locator(iframe_selector)
+                file_input = iframe.locator('input[type="file"]').first
+                async with self._page.expect_file_chooser() as fc_info:
+                    await file_input.click()
+                    file_chooser = await fc_info.value
+                    await file_chooser.set_files(file_path)
+                attachment_file = True
+                popup_iframe = iframe
+                self._log(message="File attached successfully", level=LogLevel.INFO)
+                break
+            except Exception as e:
+                print(e)
+                self._log(message=f"Error with iframe {iframe_selector}: {e}", level=LogLevel.ERROR)
+                continue
+
+        if not attachment_file:
+            raise RuntimeError("Failed to attach file: No suitable iframe or file input found")
+
+        await self._page.wait_for_timeout(1000)
+        ok_button = popup_iframe.locator("div.lsButton:has(span:has-text('OK'))")
+        await ok_button.press("Enter")
+        self._log_verbose(message="Attachment process completed")
+
     ### ***********************************************************
     ### ***********************************************************
     @_exception_helper
@@ -505,7 +553,7 @@ class nkInvoice(BaseModel):
         if self.invoice_data.BilagsFilePath is None or len(str(self.invoice_data.BilagsFilePath)) == 0:
             self._log_verbose(message="No attachment file path provided, skipping attachment step")
             return
-        await self._upload_file(locator='div[title="Vedhæft et nyt dokument"]', file_path=str(self.invoice_data.BilagsFilePath))
+        await self._upload_file_v2(locator='div[title="Vedhæft et nyt dokument"]', file_path=str(self.invoice_data.BilagsFilePath))
         self._log_verbose(message="Attachment process completed")
     ### ***********************************************************
     ### ***********************************************************
@@ -513,7 +561,7 @@ class nkInvoice(BaseModel):
     async def _fill_csv(self):
         """Handle file attachment in popup window"""
         self._log_verbose(message="CSV attachment process started")
-        await self._upload_file(locator='div[title="Importer konteringslinjer fra EXCEL"]', file_path=str(self.invoice_data.csv_filename))
+        await self._upload_file_v2(locator='div[title="Importer konteringslinjer fra EXCEL"]', file_path=str(self.invoice_data.csv_filename))
         self._log_verbose(message="CSV attachment process completed")
     ### ***********************************************************
     ### ***********************************************************

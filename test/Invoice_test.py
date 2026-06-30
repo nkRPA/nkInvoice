@@ -357,6 +357,26 @@ class TestInvoice(unittest.IsolatedAsyncioTestCase):
         # self.assertTrue(result['status'] == "Succes")
         # self.assertTrue("bilag ikke oprettet" in result['message'].lower())
         # self.assertTrue("bilaget er kontrolleret og ok" in result['bilag'].lower())
+    async def test_stress_invoice_creation_all_fields(self):
+        d = date.today()
+        opus = OpusConfig(url=self.opus_url, municipality_code=self.opus_municipality_code, username=self.opus_username, password=self.opus_userpassword)
+        invoice_data = self.invoice_data.copy()
+        invoice = nkInvoice(opus_data=opus, invoice_data=invoice_data)
+        invoice._headless=False
+        for i in range(10):
+            result = await invoice.create_invoice()
+            #{'status': 'Succes', 'message': 'Bilag oprettet', 'Bilag': 'Omposteringsbilaget er kontrolleret og OK'}
+            self.assertTrue(result['status'] == "Succes")
+            self.assertTrue("bilag ikke oprettet" in result['message'].lower())
+            self.assertTrue("bilaget er kontrolleret og ok" in result['bilag'].lower())
+
+        invoice._headless=True
+        for i in range(10):
+            result = await invoice.create_invoice()
+            #{'status': 'Succes', 'message': 'Bilag oprettet', 'Bilag': 'Omposteringsbilaget er kontrolleret og OK'}
+            self.assertTrue(result['status'] == "Succes")
+            self.assertTrue("bilag ikke oprettet" in result['message'].lower())
+            self.assertTrue("bilaget er kontrolleret og ok" in result['bilag'].lower())
 
 
 if __name__ == '__main__':
