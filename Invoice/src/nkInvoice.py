@@ -64,7 +64,7 @@ class OpusCostData(BaseModel):
     Artskonto: int = Field(gt=9999999, lt=100000000)
     PSP_element:str|None = ""
     SIO_element:str|None = ""
-    Kost: float#confloat(gt=0.0)
+    Kost: float
     PosteringsTekst:str
     Type: eOpusCostType
 
@@ -166,28 +166,27 @@ class nkInvoice(BaseModel):
             ValueError: If there are validation errors in the input data.
             """  
         self.create_invoice_allowed=create_invoice_allowed
-        self._log(message=f"Invoice creation started with create_invoice_allowed={create_invoice_allowed}, max_retries={max_retries}, try_number={try_number}", level=LogLevel.INFO)    
+        self._log(message=f"Invoice creation started with create_invoice_allowed={create_invoice_allowed}, max_retries={max_retries}, try_number={try_number}", level=LogLevel.INFO)
         await self._create_csv()
-        
-        for run in range(try_number, max_retries):
+
+        for attempt in range(try_number, max_retries + 1):
             try:
-                self._log(message=f"Try invoice creation, attempt {try_number} of {max_retries} - FAILED", level=LogLevel.INFO)
-                self._log(message="Start creation of invoice -> _create_invoice()", level=LogLevel.INFO)
+                self._log(message=f"Start creation of invoice, attempt {attempt} of {max_retries} -> _create_invoice()", level=LogLevel.INFO)
                 return await self._create_invoice()
             except Exception as e:
-                self._log(message=f"Try invoice creation exception: {e}", level=LogLevel.WARNING)
-                self._log(message=f"Waiting {sleep_time} second(s)", level=LogLevel.WARNING)
+                self._log(message=f"Invoice creation attempt {attempt} failed: {e}", level=LogLevel.WARNING)
+                if attempt == max_retries:
+                    raise
+                self._log(message=f"Waiting {sleep_time} second(s) before retrying", level=LogLevel.WARNING)
                 # closing browser
                 try:
-                    sleep(1)
-                    self._context.close()
-                    self._browser.close()
-                    sleep(sleep_time)
-                except:
-                    pass
-                
-                
-        return await self._create_invoice()
+                    if self._context:
+                        await self._context.close()
+                    if self._browser:
+                        await self._browser.close()
+                except Exception as close_error:
+                    self._log(message=f"Error closing browser during retry: {close_error}", level=LogLevel.WARNING)
+                sleep(sleep_time)
         ## sleep for a while to ensure all processes are completed before deleting files
         
     ### ------------------------------------------------------------------------------------------------------
@@ -320,9 +319,9 @@ class nkInvoice(BaseModel):
             await self._page.wait_for_selector("#loginForm", timeout=2000)
 
             # Check if error element exists and is visible
-            error_locator = await self._page.locator("#errorText")
+            error_locator = self._page.locator("#errorText")
 
-            if error_locator.is_visible():
+            if await error_locator.is_visible():
                 error_message = await error_locator.inner_text()
                 self._log_verbose(message=f"Login error message found: {error_message}")
                 return error_message
@@ -344,7 +343,7 @@ class nkInvoice(BaseModel):
         await self._page.get_by_role("textbox", name="User Account").fill(self.opus_data.username)
         self._log_verbose(message=f"Filled username: {self.opus_data.username}")
         await self._page.get_by_role("textbox", name="Password").fill(self.opus_data.password)
-        self._log_verbose(message=f"Filled password: {self.opus_data.password}")
+        self._log_verbose(message="Filled password")
         await self._page.get_by_role("textbox", name="Password").press("Enter")
         self._log_verbose(message="Pressed Enter after filling password")
 
@@ -440,64 +439,6 @@ class nkInvoice(BaseModel):
     ### ***********************************************************
     ### ***********************************************************
     @_exception_helper
-    async def _upload_file(self, locator:str, file_path: str):
-        path = Path(file_path)
-        if not path.exists():
-            raise FileNotFoundError(f"File to upload not found: {file_path}")
-        
-        self._log(message=f"Uploading file:{file_path}", level=LogLevel.INFO)
-        """Handle file attachment in popup window"""
-        # Click the attachment button
-        self._log_verbose(message=f"Uploading file using locator: {locator}")
-        
-        frame = self._page.frame_locator("#contentAreaFrame").frame_locator("#isolatedWorkArea")
-        attachment_button = frame.locator(locator)
-        self._log_verbose(message="Clicking attachment button")
-        await attachment_button.click()
-        
-        # Wait longer for popup to appear and check for new windows/popups
-        self._log_verbose(message="Waiting for attachment popup")
-        await self._page.wait_for_timeout(3000)  # Wait 3 seconds for popup
-        
-        # Check all iframes for file input (SAP uses direct file input, not "Choose File" button)
-        # Try each iframe selector
-        # verbose logging of frames
-        self.verbose_log_frames()
-                
-        attachment_file=False
-        # Try multiple times to find the correct iframe and attach the file
-        for iframe_selector in IFRAME_SELECTORS:
-            try:
-                self._log(message=f"Trying iframe selector: {iframe_selector}")
-                iframe = self._page.frame_locator(iframe_selector)
-                # Look for file input directly (SAP doesn't use "Choose File" button)
-                file_input = iframe.locator('input[type="file"]').first
-                if file_input.is_visible():
-                    # Click the file input first to trigger file dialog
-                    self._log_verbose(message=f"Clicking file input to trigger file dialog...")
-                    async with self._page.expect_file_chooser() as fc_info:
-                        await file_input.click()
-                        file_chooser = await fc_info.value
-                        await file_chooser.set_files(file_path)
-                    attachment_file=True
-                    self._log(message="File attached successfully", level=LogLevel.INFO)
-                    break
-            except Exception as e:
-                print(e)
-                self._log(message=f"Error with iframe {iframe_selector}: {e}", level=LogLevel.ERROR)
-                continue
-            
-        # Wait a moment for the file to be processed
-        if not attachment_file:
-            raise RuntimeError("Failed to attach file: No suitable iframe or file input found")
-        
-        self._log_verbose(message=f'Attachment file set: {attachment_file}')
-        self._log_verbose(message="Waiting for file to be processed")
-        self._page.wait_for_timeout(4000)
-        ok_button = iframe.locator("div.lsButton:has(span:has-text('OK'))")
-        await ok_button.press("Enter")                        
-        self._log_verbose(message="Attachment process completed")
-
     async def _upload_file_v2(self, locator: str, file_path: str):
         path = Path(file_path)
         if not path.exists():
@@ -511,31 +452,42 @@ class nkInvoice(BaseModel):
 
         frame = self._page.frame_locator("#contentAreaFrame").frame_locator("#isolatedWorkArea")
         attachment_button = frame.locator(locator)
-        self._log_verbose(message="Clicking attachment button")
-        await attachment_button.click()
-        await self._page.wait_for_timeout(3000)
 
-        self.verbose_log_frames()
-
+        combined_iframe_selector = ", ".join(IFRAME_SELECTORS)
         attachment_file = False
         popup_iframe = None
-        for iframe_selector in IFRAME_SELECTORS:
+        max_click_attempts = 3
+        for click_attempt in range(1, max_click_attempts + 1):
+            self._log_verbose(message=f"Clicking attachment button (attempt {click_attempt} of {max_click_attempts})")
+            await attachment_button.click()
+
             try:
-                self._log(message=f"Trying iframe selector: {iframe_selector}")
-                iframe = self._page.frame_locator(iframe_selector)
-                file_input = iframe.locator('input[type="file"]').first
-                async with self._page.expect_file_chooser() as fc_info:
-                    await file_input.click()
-                    file_chooser = await fc_info.value
-                    await file_chooser.set_files(file_path)
-                attachment_file = True
-                popup_iframe = iframe
-                self._log(message="File attached successfully", level=LogLevel.INFO)
-                break
-            except Exception as e:
-                print(e)
-                self._log(message=f"Error with iframe {iframe_selector}: {e}", level=LogLevel.ERROR)
+                await self._page.wait_for_selector(combined_iframe_selector, state="attached", timeout=15000)
+            except Exception:
+                self._log(message=f"No upload popup appeared after click attempt {click_attempt} of {max_click_attempts}", level=LogLevel.WARNING)
                 continue
+
+            self.verbose_log_frames()
+
+            for iframe_selector in IFRAME_SELECTORS:
+                try:
+                    self._log(message=f"Trying iframe selector: {iframe_selector}")
+                    iframe = self._page.frame_locator(iframe_selector)
+                    file_input = iframe.locator('input[type="file"]').first
+                    async with self._page.expect_file_chooser() as fc_info:
+                        await file_input.click(timeout=5000)
+                        file_chooser = await fc_info.value
+                        await file_chooser.set_files(file_path)
+                    attachment_file = True
+                    popup_iframe = iframe
+                    self._log(message="File attached successfully", level=LogLevel.INFO)
+                    break
+                except Exception as e:
+                    self._log(message=f"Error with iframe {iframe_selector}: {e}", level=LogLevel.ERROR)
+                    continue
+
+            if attachment_file:
+                break
 
         if not attachment_file:
             raise RuntimeError("Failed to attach file: No suitable iframe or file input found")

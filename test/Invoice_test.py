@@ -94,18 +94,6 @@ class TestInvoice(unittest.IsolatedAsyncioTestCase):
         except Exception as e:
             self.assertTrue("municipality_code" in str(e).lower() and "missing" in str(e).lower())  
     # *************************************************************************************************************
-    async def test_invoice_Kost_data(self):
-        # Normal cases
-        try:
-            self._testdata("Kost", f"{self.cost}", eOpusCostType.DEBET)
-        except Exception as e:
-            self.assertTrue(False)
-        # Edge cases - both empty or both filled    
-        try:
-            self._testdata("Kost", f"{self.cost + 1}", eOpusCostType.DEBET)
-        except Exception as e:
-            self.assertTrue("Debet and Kredit Kost must be equal".lower() in str(e).lower())  
-    # *************************************************************************************************************
     async def test_invoice_Debet_PSP_data(self):
         # Normal cases
         try:
@@ -202,50 +190,55 @@ class TestInvoice(unittest.IsolatedAsyncioTestCase):
     # *************************************************************************************************************
     async def test_invoice_Debet_PosteringsTekst_data(self):
             try:
-                self._testdata("Debet_PosteringsTekst", "Some tekst")
-                self._testdata("Debet_PosteringsTekst", "")
+                self._testdata("PosteringsTekst", "Some tekst", eOpusCostType.DEBET)
+                self._testdata("PosteringsTekst", "", eOpusCostType.DEBET)
             except Exception as e:
                 self.assertTrue(False)
     # *************************************************************************************************************
     async def test_invoice_Kredit_PosteringsTekst_data(self):
             try:
-                self._testdata("Kredit_PosteringsTekst", "Some tekst")
-                self._testdata("Kredit_PosteringsTekst", "")
+                self._testdata("PosteringsTekst", "Some tekst", eOpusCostType.KREDIT)
+                self._testdata("PosteringsTekst", "", eOpusCostType.KREDIT)
             except Exception as e:
                 self.assertTrue(False)
     # *************************************************************************************************************
     async def test_invoice_Kost_data(self):
+            # Normal cases - value matches the default Kredit cost, so Debet/Kredit equality still holds
             try:
-                self._testdata("Kost", 10.0)
-                self._testdata("Kost", 20.0)
-                self._testdata("Kost", "10")
+                self._testdata("Kost", self.cost, eOpusCostType.DEBET)
+                self._testdata("Kost", f"{self.cost}", eOpusCostType.DEBET)
             except Exception as e:
                 self.assertTrue(False)
 
             # error cases
             try:
-                self._testdata("Kost", "")
+                self._testdata("Kost", self.cost + 1, eOpusCostType.DEBET)
             except Exception as e:
-                self.assertTrue("Input should be a valid number, unable to parse string as a number".lower() in str(e).lower())  
+                self.assertTrue("Debet and Kredit Kost must be equal".lower() in str(e).lower())
 
             try:
-                self._testdata("Kost", 0.0)
+                self._testdata("Kost", "", eOpusCostType.DEBET)
             except Exception as e:
-                self.assertTrue("Input should be greater than 0 ".lower() in str(e).lower())  
+                self.assertTrue("Input should be a valid number, unable to parse string as a number".lower() in str(e).lower())
+
+            try:
+                self._testdata("Kost", 0.0, eOpusCostType.DEBET)
+            except Exception as e:
+                self.assertTrue("Input should be greater than 0 ".lower() in str(e).lower())
     # *************************************************************************************************************
     async def test_invoice_creation_login(self):
         try:
             opus = OpusConfig(url=self.opus_url, municipality_code=self.opus_municipality_code, username="bruger", password="kode1234")
             invoice = nkInvoice(opus_data=opus, invoice_data=self.invoice_data)
-            invoice.create_invoice()
+            await invoice.create_invoice()
         except Exception as e:
             print(e)
             #Error: Error in function '_start_opus_rollebaseret': Login failed: Enter your user ID in the format "domain\user" or "user@domain".
-            self.assertTrue("_start_opus_rollebaseret" in str(e).lower() and "login failed" in str(e).lower())  
+            self.assertTrue("_start_opus_rollebaseret" in str(e).lower() and "login failed" in str(e).lower())
         try:
             opus = OpusConfig(url=self.opus_url, municipality_code=self.opus_municipality_code, username=self.opus_username, password="kode1234")
             invoice = nkInvoice(opus_data=opus, invoice_data=self.invoice_data)
-            invoice.create_invoice()
+            await invoice.create_invoice()
         except Exception as e:
             print(e)
             #Error: Error in function '_start_opus_rollebaseret': Login failed: Enter your user ID in the format "domain\user" or "user@domain".
