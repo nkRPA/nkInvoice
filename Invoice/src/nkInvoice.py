@@ -119,8 +119,10 @@ class InvoiceData(BaseModel):
         if (debet == 0 or kredit == 0 or (debet != kredit)):
             raise ValueError("Debet and Kredit Kost must be equal")    
         
-        if (len(debet_psp) == 0 and len(kredit_psp) == 0) or (len(debet_psp) > 0 and len(kredit_psp) > 0):
-            return self
+        # if (len(debet_psp) == 0 and len(kredit_psp) == 0) or (len(debet_psp) > 0 and len(kredit_psp) > 0):
+        #     return self
+        
+        return self
         
         raise ValueError("Debet and Kredit PSP must either both be empty or both filled")
 
